@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@media print {
+  /* Hide structural navigation Chrome and filter button components */
+  aside,
+  header,
+  button,
+  input,
+  select,
+  .no-print,
+  #sidebar,
+  #navbar {
+    display: none !important;
+  }
+
+  /* Reset body and content container scroll blocks to allow multiple page flow */
+  html,
+  body,
+  #root,
+  .min-h-screen,
+  .h-screen,
+  .overflow-hidden,
+  .overflow-y-auto,
+  main {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Force background colors to print correctly */
+  body {
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent card dividers from breaking awkwardly across pages */
+  .bg-white,
+  .bg-slate-50,
+  .rounded-xl {
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force page break for Leads Conversion Report and other massive widgets if needed */
+  .page-break {
+    page-break-before: always !important;
+    break-before: always !important;
+  }
+}
