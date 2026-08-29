@@ -1,4 +1,5 @@
-const { Notification, User } = require('../models');
+const { Notification, User, Lead } = require('../models');
+const { broadcastNotification, sendLeadEmailBroadcast } = require('../services/notificationService');
 
 const getNotifications = async (req, res) => {
   try {
@@ -40,40 +41,68 @@ const markAllAsRead = async (req, res) => {
 
 const sendNotification = async (req, res) => {
   try {
-    const { userIds, allUsers, title, message, type = 'SYSTEM_ALERT' } = req.body;
+    const { userIds, allUsers, targetType = 'ALL', targetRole, title, message, type = 'SYSTEM_ALERT' } = req.body;
 
     if (!title || !message) {
       return res.status(400).json({ success: false, message: 'Title and message are required' });
     }
 
-    let targetUserIds = [];
-
+    let finalTargetType = targetType;
     if (allUsers) {
-      const activeUsers = await User.findAll({ where: { status: 'ACTIVE' } });
-      targetUserIds = activeUsers.map(u => u.id);
+      finalTargetType = 'ALL';
+    } else if (targetRole) {
+      finalTargetType = 'ROLE';
     } else if (Array.isArray(userIds) && userIds.length > 0) {
-      targetUserIds = userIds;
-    } else {
-      return res.status(400).json({ success: false, message: 'Please specify userIds or select allUsers' });
+      finalTargetType = 'SPECIFIC';
     }
 
-    if (targetUserIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'No target users found' });
-    }
-
-    const records = targetUserIds.map(uid => ({
-      user_id: uid,
-      type,
+    const result = await broadcastNotification({
+      targetType: finalTargetType,
+      targetRole,
+      userIds,
       title,
       message,
-      is_read: false
-    }));
+      type
+    });
 
-    await Notification.bulkCreate(records);
-
-    return res.status(201).json({ success: true, message: `Notification successfully sent to ${targetUserIds.length} users` });
+    return res.status(201).json({
+      success: true,
+      message: result.message,
+      count: result.count
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to send notifications', errors: [error.message] });
+  }
+};
+
+const sendLeadsBroadcastEmail = async (req, res) => {
+  try {
+    const { leadIds, allLeads = false, statusFilter = 'ALL', subject, message } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({ success: false, message: 'Subject and message are required fields' });
+    }
+
+    if (!allLeads && (!Array.isArray(leadIds) || leadIds.length === 0)) {
+      return res.status(400).json({ success: false, message: 'Please select target leads or check all leads' });
+    }
+
+    const result = await sendLeadEmailBroadcast({
+      leadIds,
+      allLeads,
+      statusFilter,
+      subject,
+      message,
+      senderUserId: req.user.id
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      count: result.count
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Failed to send broadcast email to leads' });
   }
 };
 
@@ -81,5 +110,6 @@ module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  sendNotification
+  sendNotification,
+  sendLeadsBroadcastEmail
 };

@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { sequelize, Case, User, Role, CaseAssignment, ActivityLog, Notification, Lead } = require('../models');
+const { createNotification } = require('../services/notificationService');
 
 const getUnassignedCases = async (req, res) => {
   try {
@@ -51,14 +52,14 @@ const assignCase = async (req, res) => {
       assigned_at: new Date()
     }, { transaction });
 
-    await Notification.create({
-      user_id: case_manager_id,
+    await createNotification({
+      userId: case_manager_id,
       type: 'CASE_ASSIGNED',
       title: 'New Case Assigned',
       message: `You have been assigned Case: ${singleCase.case_number}`,
-      entity_type: 'Case',
-      entity_id: singleCase.id
-    }, { transaction });
+      entityType: 'Case',
+      entityId: singleCase.id
+    });
 
     await ActivityLog.create({
       user_id: req.user.id,
@@ -118,14 +119,14 @@ const bulkAssignCases = async (req, res) => {
       }, { transaction });
     }
 
-    await Notification.create({
-      user_id: case_manager_id,
+    await createNotification({
+      userId: case_manager_id,
       type: 'CASE_ASSIGNED_BULK',
       title: 'Bulk Cases Assigned',
       message: `You have been bulk-assigned ${case_ids.length} cases.`,
-      entity_type: 'User',
-      entity_id: case_manager_id
-    }, { transaction });
+      entityType: 'User',
+      entityId: case_manager_id
+    });
 
     await ActivityLog.create({
       user_id: req.user.id,

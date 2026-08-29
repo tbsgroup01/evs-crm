@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sequelize, Payment, Case, CasePackage, ActivityLog, Notification, Lead, User, Role } = require('../models');
+const { createNotification } = require('../services/notificationService');
 
 const getPayments = async (req, res) => {
   try {
@@ -159,14 +160,14 @@ const addPayment = async (req, res) => {
     });
 
     for (const admin of admins) {
-      await Notification.create({
-        user_id: admin.id,
+      await createNotification({
+        userId: admin.id,
         type: 'PAYMENT_RECEIVED',
         title: 'Payment Logged',
         message: `A payment of ${amount} was logged on Case ${singleCase.case_number} (${singleCase.Lead.client_name})`,
-        entity_type: 'Case',
-        entity_id: singleCase.id
-      }, { transaction });
+        entityType: 'Case',
+        entityId: singleCase.id
+      });
     }
 
     await transaction.commit();

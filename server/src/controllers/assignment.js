@@ -1,5 +1,6 @@
 const { sequelize, Lead, User, Role, LeadInteraction, ActivityLog, Notification } = require('../models');
 const { Op } = require('sequelize');
+const { createNotification } = require('../services/notificationService');
 
 const getUnassignedLeads = async (req, res) => {
   try {
@@ -52,14 +53,14 @@ const assignLead = async (req, res) => {
       notes: `Lead assigned to Counselor: ${counselor.name}`
     }, { transaction });
 
-    await Notification.create({
-      user_id: counselor_id,
+    await createNotification({
+      userId: counselor_id,
       type: 'LEAD_ASSIGNED',
       title: 'New Lead Assigned',
       message: `You have been assigned a new lead: ${lead.client_name} (${lead.lead_number})`,
-      entity_type: 'Lead',
-      entity_id: lead.id
-    }, { transaction });
+      entityType: 'Lead',
+      entityId: lead.id
+    });
 
     await ActivityLog.create({
       user_id: req.user.id,
@@ -113,14 +114,14 @@ const reassignLead = async (req, res) => {
       notes: `Lead reassigned to Counselor: ${counselor.name}`
     }, { transaction });
 
-    await Notification.create({
-      user_id: counselor_id,
+    await createNotification({
+      userId: counselor_id,
       type: 'LEAD_REASSIGNED',
       title: 'Lead Reassigned',
       message: `You have been reassigned lead: ${lead.client_name} (${lead.lead_number})`,
-      entity_type: 'Lead',
-      entity_id: lead.id
-    }, { transaction });
+      entityType: 'Lead',
+      entityId: lead.id
+    });
 
     await ActivityLog.create({
       user_id: req.user.id,
@@ -181,14 +182,14 @@ const bulkAssignLeads = async (req, res) => {
       }, { transaction });
     }
 
-    await Notification.create({
-      user_id: counselor_id,
+    await createNotification({
+      userId: counselor_id,
       type: 'LEAD_ASSIGNED_BULK',
       title: 'Bulk Leads Assigned',
       message: `You have been bulk-assigned ${lead_ids.length} new leads.`,
-      entity_type: 'User',
-      entity_id: counselor_id
-    }, { transaction });
+      entityType: 'User',
+      entityId: counselor_id
+    });
 
     await ActivityLog.create({
       user_id: req.user.id,

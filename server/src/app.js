@@ -2,12 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 // const rateLimit = require('express-rate-limit');
+const path = require('path');
 const logger = require('./utils/logger');
 const authRoutes = require('./routes/auth');
 const leadsRoutes = require('./routes/leads');
 const casesRoutes = require('./routes/cases');
 const dashboardRoutes = require('./routes/dashboard');
 const usersRoutes = require('./routes/users');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -17,15 +19,9 @@ app.use(cors({
   credentials: true
 }));
 
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000,
-//   max: 100,
-//   message: { success: false, message: 'Too many requests, please try again later.' }
-// });
-// app.use(limiter);
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use((req, res, next) => {
   logger.info(`${req.method} ${req.url} - IP: ${req.ip}`);
@@ -44,6 +40,7 @@ app.use('/api/v1', leadsRoutes);
 app.use('/api/v1', casesRoutes);
 app.use('/api/v1', dashboardRoutes);
 app.use('/api/v1', usersRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 
 app.use((req, res, next) => {
   res.status(404).json({

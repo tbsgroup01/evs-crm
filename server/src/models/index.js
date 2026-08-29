@@ -21,7 +21,8 @@ const models = {
   CasePackage: require('./casePackage')(sequelize),
   Payment: require('./payment')(sequelize),
   Notification: require('./notification')(sequelize),
-  ActivityLog: require('./activityLog')(sequelize)
+  ActivityLog: require('./activityLog')(sequelize),
+  Setting: require('./setting')(sequelize)
 };
 
 Object.keys(models).forEach((modelName) => {

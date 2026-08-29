@@ -18,7 +18,8 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  sendNotification
+  sendNotification,
+  sendLeadsBroadcastEmail
 } = require('../controllers/notification');
 const { getActivityLogs } = require('../controllers/activityLog');
 const {
@@ -60,7 +61,8 @@ router.get('/search', authenticate, globalSearch);
 router.get('/notifications', authenticate, getNotifications);
 router.patch('/notifications/:id/read', authenticate, markAsRead);
 router.patch('/notifications/read-all', authenticate, markAllAsRead);
-router.post('/notifications/send', authenticate, authorize('ADMIN'), sendNotification);
+router.post('/notifications/send', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), sendNotification);
+router.post('/notifications/send-leads', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), sendLeadsBroadcastEmail);
 
 router.get('/activity', authenticate, authorize('ADMIN'), getActivityLogs);
 

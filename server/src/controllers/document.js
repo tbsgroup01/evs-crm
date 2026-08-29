@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Document, Case, DocumentType, ActivityLog, Notification, User } = require('../models');
+const { createNotification } = require('../services/notificationService');
 
 const uploadDocument = async (req, res) => {
   try {
@@ -143,13 +144,13 @@ const updateDocumentStatus = async (req, res) => {
       ip_address: req.ip
     });
 
-    await Notification.create({
-      user_id: document.uploaded_by,
+    await createNotification({
+      userId: document.uploaded_by,
       type: status === 'VERIFIED' ? 'DOCUMENT_VERIFIED' : 'DOCUMENT_REJECTED',
       title: status === 'VERIFIED' ? 'Document Verified' : 'Document Rejected',
       message: `Your uploaded document ${document.file_name} was ${status.toLowerCase()}`,
-      entity_type: 'Case',
-      entity_id: document.case_id
+      entityType: 'Case',
+      entityId: document.case_id
     });
 
     return res.status(200).json({ success: true, data: document });
