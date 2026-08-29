@@ -51,7 +51,7 @@ const login = async (req, res) => {
     const cookieOptions = {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     };
 
@@ -90,8 +90,13 @@ const logout = async (req, res) => {
       });
     }
 
-    res.clearCookie('refresh_token');
-    res.clearCookie('access_token');
+    const clearOptions = {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax'
+    };
+    res.clearCookie('refresh_token', clearOptions);
+    res.clearCookie('access_token', clearOptions);
     return res.status(200).json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Server error during logout', errors: [error.message] });
@@ -149,7 +154,7 @@ const refresh = async (req, res) => {
     res.cookie('access_token', newAccessToken, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 15 * 60 * 1000
     });
 

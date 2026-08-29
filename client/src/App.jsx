@@ -19,8 +19,21 @@ import { SettingsPanel } from './pages/SettingsPanel';
 import { NotificationsList } from './pages/NotificationsList';
 import { DashboardLayout } from './components/DashboardLayout';
 
-axios.defaults.baseURL = 'http://localhost:5505';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
 axios.defaults.withCredentials = true;
+
+const initialToken = localStorage.getItem('token');
+if (initialToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${initialToken}`;
+}
+
+axios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => Promise.reject(error));
 
 const queryClient = new QueryClient();
 export const AuthContext = createContext(null);
@@ -85,6 +98,8 @@ function App() {
         setLoading(false);
       })
       .catch(() => {
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
         setUser(null);
         setLoading(false);
       });
@@ -97,13 +112,22 @@ function App() {
           error.response?.status === 401 &&
           !originalRequest._retry &&
           originalRequest.url !== '/api/v1/auth/refresh' &&
-          originalRequest.url !== '/api/v1/auth/me'
+          originalRequest.url !== '/api/v1/auth/me' &&
+          originalRequest.url !== '/api/v1/auth/login'
         ) {
           originalRequest._retry = true;
           try {
-            await axios.post('/api/v1/auth/refresh');
+            const refreshRes = await axios.post('/api/v1/auth/refresh');
+            if (refreshRes.data?.data?.token) {
+              const newToken = refreshRes.data.data.token;
+              localStorage.setItem('token', newToken);
+              axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+            }
             return axios(originalRequest);
           } catch (refreshError) {
+            localStorage.removeItem('token');
+            delete axios.defaults.headers.common['Authorization'];
             setUser(null);
             return Promise.reject(refreshError);
           }
@@ -117,12 +141,18 @@ function App() {
     };
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, token) => {
+    if (token) {
+      localStorage.setItem('token', token);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
     setUser(userData);
   };
 
   const logout = () => {
-    axios.post('/api/v1/auth/logout').then(() => {
+    localStorage.removeItem('token');
+    delete axios.defaults.headers.common['Authorization'];
+    axios.post('/api/v1/auth/logout').finally(() => {
       setUser(null);
     });
   };

@@ -561,7 +561,7 @@ export const CaseDetail = () => {
             headers={['Document Type', 'File Name', 'Status', 'Actions']}
             rows={documents.map(d => [
               <span className="font-bold text-slate-700">{d.DocumentType?.name}</span>,
-              <a href={`http://localhost:5505/api/v1/documents/${d.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
+              <a href={`https://evs-crm.towsindia.com/api/v1/documents/${d.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
               <StatusBadge status={d.status} />,
               <div className="flex items-center gap-3">
                 {d.status === 'UPLOADED' && (
@@ -593,7 +593,7 @@ export const CaseDetail = () => {
               <span className="font-mono text-xs">{p.transaction_id || 'N/A'}</span>,
               <span className="text-xs text-gray-500 block max-w-xs truncate" title={p.notes}>{p.notes || 'N/A'}</span>,
               p.receipt_path ? (
-                <a href={`http://localhost:5505/api/v1/payments/${p.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
+                <a href={`https://evs-crm.towsindia.com/api/v1/payments/${p.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
               ) : <span className="text-xs text-gray-400">No Proof</span>,
               <span className="text-xs font-semibold text-slate-700">{new Date(p.payment_date).toLocaleDateString()}</span>
             ])}

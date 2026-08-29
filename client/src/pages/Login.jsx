@@ -27,7 +27,9 @@ const Login = () => {
     setErrorMsg('');
     try {
       const res = await axios.post('/api/v1/auth/login', data);
-      login(res.data.data.user);
+      const user = res.data.data.user;
+      const token = res.data.data.token;
+      login(user, token);
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Login failed. Please check credentials.');
     } finally {
