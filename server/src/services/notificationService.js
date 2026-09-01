@@ -21,7 +21,7 @@ async function sendNotificationEmail(userId, title, message) {
     const port = config.mail_port ? parseInt(config.mail_port, 10) : 587;
     const mailUser = config.mail_user || process.env.SMTP_USER;
     const pass = config.mail_pass || process.env.SMTP_PASS;
-    const fromName = config.mail_from_name || 'EVS CRM System';
+    const fromName = config.mail_from_name || 'EVG CRM System';
 
     // For Gmail SMTP, the envelope sender MUST match the authenticated user email for guaranteed delivery
     const fromAddress = (host.includes('gmail.com') || !config.mail_from_address) ? mailUser : config.mail_from_address;
@@ -44,8 +44,8 @@ async function sendNotificationEmail(userId, title, message) {
       from: `"${fromName}" <${fromAddress}>`,
       replyTo: config.mail_from_address || mailUser,
       to: user.email,
-      subject: `[EVS CRM] ${title}`,
-      text: `${title}\n\nHi ${user.name},\n\n${message}\n\nBest regards,\nEVS CRM Team`,
+      subject: `[EVG CRM] ${title}`,
+      text: `${title}\n\nHi ${user.name},\n\n${message}\n\nBest regards,\nEVG CRM Team`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; margin: 0 auto;">
           <h2 style="color: #0f172a; margin-top: 0; font-size: 20px; border-bottom: 2px solid #3b82f6; padding-bottom: 10px;">
@@ -55,9 +55,9 @@ async function sendNotificationEmail(userId, title, message) {
           <div style="background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 14px 18px; margin: 18px 0; border-radius: 6px;">
             <p style="color: #1e293b; font-size: 14px; margin: 0; line-height: 1.6;">${message}</p>
           </div>
-          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">Log in to your EVS CRM dashboard to view details and manage your account.</p>
+          <p style="color: #64748b; font-size: 13px; margin-top: 24px;">Log in to your EVG CRM dashboard to view details and manage your account.</p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-          <p style="color: #94a3b8; font-size: 12px; margin: 0;">This is an automated notification from EVS CRM System.</p>
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">This is an automated notification from EVG CRM System.</p>
         </div>
       `
     });
@@ -173,7 +173,7 @@ async function sendLeadEmailBroadcast({ leadIds = [], allLeads = false, statusFi
     const port = config.mail_port ? parseInt(config.mail_port, 10) : 587;
     const mailUser = config.mail_user || process.env.SMTP_USER;
     const pass = config.mail_pass || process.env.SMTP_PASS;
-    const fromName = config.mail_from_name || 'EVS Immigration & CRM Services';
+    const fromName = config.mail_from_name || 'EVG Immigration & CRM Services';
 
     // For Gmail SMTP, fromAddress MUST match the authenticated Gmail user email for successful delivery
     const fromAddress = (host.includes('gmail.com') || !config.mail_from_address) ? mailUser : config.mail_from_address;
@@ -198,7 +198,7 @@ async function sendLeadEmailBroadcast({ leadIds = [], allLeads = false, statusFi
           from: `"${fromName}" <${fromAddress}>`,
           replyTo: config.mail_from_address || mailUser,
           to: lead.email,
-          subject: subject || 'Announcement from EVS Immigration',
+          subject: subject || 'Announcement from EVG Immigration',
           text: `Dear ${lead.client_name},\n\n${message}\n\nBest regards,\n${fromName}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; margin: 0 auto;">
@@ -213,7 +213,7 @@ async function sendLeadEmailBroadcast({ leadIds = [], allLeads = false, statusFi
                 </div>
               </div>
               <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">EVS Immigration Services. All rights reserved.</p>
+              <p style="color: #94a3b8; font-size: 12px; margin: 0; text-align: center;">EVG Immigration Services. All rights reserved.</p>
             </div>
           `
         });
@@ -228,7 +228,7 @@ async function sendLeadEmailBroadcast({ leadIds = [], allLeads = false, statusFi
             interaction_type: 'EMAIL',
             interaction_date: new Date(),
             notes: `Broadcast email sent: "${subject}"`
-          }).catch(() => {});
+          }).catch(() => { });
         }
       } catch (err) {
         logger.error(`[LeadEmailBroadcast] Error sending email to ${lead.email}: ${err.message}`);

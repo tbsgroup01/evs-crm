@@ -8,9 +8,9 @@ const envSchema = z.object({
   DB_PORT: z.coerce.number().default(3306),
   DB_USERNAME: z.string().default('root'),
   DB_PASSWORD: z.string().default(''),
-  DB_NAME: z.string().default('evs-crm'),
-  JWT_SECRET: z.string().default('evs_crm_jwt_secret_key_change_me_in_production'),
-  JWT_REFRESH_SECRET: z.string().default('evs_crm_jwt_refresh_secret_key_change_me_in_production')
+  DB_NAME: z.string().default('evg-crm'),
+  JWT_SECRET: z.string().default('evg_crm_jwt_secret_key_change_me_in_production'),
+  JWT_REFRESH_SECRET: z.string().default('evg_crm_jwt_refresh_secret_key_change_me_in_production')
 });
 
 const parsed = envSchema.safeParse(process.env);

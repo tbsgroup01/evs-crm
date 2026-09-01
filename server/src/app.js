@@ -19,7 +19,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://evs-crm.towsindia.com'
+  'http://localhost:5505'
 ].filter(Boolean);
 
 app.use(cors({

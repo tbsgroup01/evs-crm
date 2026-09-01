@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
-import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Trash2, ArrowRight, Search, Users, Phone, Mail, MapPin, User, FolderPlus, ArrowLeft, Check, Activity, FileText, Eye } from 'lucide-react';
+import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Trash2, ArrowRight, Search, Users, Phone, Mail, MapPin, User, FolderPlus, ArrowLeft, Check, Activity, FileText, Eye, PlusCircle } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -86,6 +86,32 @@ export const LeadList = () => {
     });
   };
 
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected lead(s)?`)) {
+      axios.post('/api/v1/leads/bulk-delete', {
+        lead_ids: selectedIds
+      }).then(() => {
+        setSelectedIds([]);
+        fetchLeads();
+      }).catch(err => {
+        alert(err.response?.data?.message || 'Failed to delete leads');
+      });
+    }
+  };
+
+  const handleSingleAssign = (leadId, newCounselorId) => {
+    if (!newCounselorId) return;
+    axios.post('/api/v1/leads/bulk-assign', {
+      lead_ids: [leadId],
+      counselor_id: newCounselorId
+    }).then(() => {
+      fetchLeads();
+    }).catch(err => {
+      alert(err.response?.data?.message || 'Failed to assign counselor');
+    });
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -118,6 +144,13 @@ export const LeadList = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 Assign Counselor {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+              </button>
+              <button
+                disabled={selectedIds.length === 0}
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" /> Bulk Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
               </button>
             </>
           )}
@@ -252,7 +285,33 @@ export const LeadList = () => {
             <Link to={`/leads/${l.id}`} className="text-blue-600 font-semibold hover:underline">{l.client_name}</Link>,
             l.mobile,
             l.email || 'N/A',
-            l.counselor ? l.counselor.name : <span className="text-xs text-gray-400">Unassigned</span>,
+            (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') ? (
+              <select
+                value={l.counselor_id || ''}
+                onChange={(e) => handleSingleAssign(l.id, e.target.value)}
+                className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${!l.counselor_id
+                  ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                  : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
+                  }`}
+              >
+                <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
+                  Unassigned
+                </option>
+                {counselors.map(c => (
+                  <option key={c.id} value={c.id} className="bg-white text-slate-800 font-medium">
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              l.counselor ? (
+                l.counselor.name
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  Unassigned
+                </span>
+              )
+            ),
             <StatusBadge status={l.status} />,
             <div className="flex items-center gap-2">
               <Link to={`/leads/${l.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="View Details">
@@ -263,6 +322,19 @@ export const LeadList = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </Link>
+              {(user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete lead ${l.lead_number}?`)) {
+                      axios.delete(`/api/v1/leads/${l.id}`).then(() => fetchLeads()).catch(err => alert(err.response?.data?.message || 'Failed to delete lead'));
+                    }
+                  }}
+                  className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center"
+                  title="Delete Lead"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ])}
         />
@@ -427,16 +499,44 @@ export const LeadDetail = () => {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="secondary" onClick={() => setFollowOpen(true)} className="flex items-center">
-              <Calendar className="mr-2 h-4 w-4" /> Schedule Follow-up
-            </Button>
-            <Button variant="secondary" onClick={() => setNoteOpen(true)} className="flex items-center">
-              <MessageSquare className="mr-2 h-4 w-4" /> Log Contact Note
-            </Button>
-            <Button onClick={() => navigate(`/leads/edit/${lead.id}`)} variant="secondary" className="flex items-center">
-              <User className="mr-2 h-4 w-4" /> Edit Profile
-            </Button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setFollowOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Calendar className="h-4 w-4 text-blue-100" />
+              <span>Schedule Follow-up</span>
+            </button>
+
+            {lead.status !== 'CONVERTED' ? (
+              <button
+                onClick={handleConvert}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <FolderPlus className="h-4 w-4 text-emerald-100" />
+                <span>Convert To Case</span>
+              </button>
+            ) : (
+              <span className="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600" /> Converted
+              </span>
+            )}
+
+            <button
+              onClick={() => setNoteOpen(true)}
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <MessageSquare className="h-4 w-4 text-purple-100" />
+              <span>Change status</span>
+            </button>
+
+            <button
+              onClick={() => navigate(`/leads/edit/${lead.id}`)}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md shadow-slate-900/10 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <User className="h-4 w-4 text-slate-300" />
+              <span>Edit Profile</span>
+            </button>
           </div>
         </div>
 
@@ -662,49 +762,7 @@ export const LeadDetail = () => {
             </div>
           </Card>
 
-          <Card title="Quick Actions">
-            <div className="grid grid-cols-2 gap-3">
-              {lead.status !== 'CONVERTED' ? (
-                <button
-                  onClick={handleConvert}
-                  className="flex flex-col items-center justify-center p-3.5 bg-slate-50 hover:bg-blue-50/50 hover:text-blue-600 text-slate-700 rounded-xl text-xs font-bold transition-all gap-1.5"
-                >
-                  <FolderPlus className="h-5 w-5" />
-                  <span>Create Case</span>
-                </button>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-3.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-semibold cursor-not-allowed gap-1.5">
-                  <Check className="h-5 w-5 text-emerald-500" />
-                  <span>Converted</span>
-                </div>
-              )}
 
-              <button
-                onClick={() => setNoteOpen(true)}
-                className="flex flex-col items-center justify-center p-3.5 bg-slate-50 hover:bg-blue-50/50 hover:text-blue-600 text-slate-700 rounded-xl text-xs font-bold transition-all gap-1.5"
-              >
-                <MessageSquare className="h-5 w-5" />
-                <span>Add Note</span>
-              </button>
-
-              <a
-                href={lead.email ? `mailto:${lead.email}` : '#'}
-                onClick={(e) => !lead.email && (e.preventDefault() || alert('No email set for this lead'))}
-                className="flex flex-col items-center justify-center p-3.5 bg-slate-50 hover:bg-blue-50/50 hover:text-blue-600 text-slate-700 rounded-xl text-xs font-bold text-center transition-all gap-1.5 animate-none"
-              >
-                <Mail className="h-5 w-5" />
-                <span>Send Email</span>
-              </a>
-
-              <button
-                onClick={handleDownloadLead}
-                className="flex flex-col items-center justify-center p-3.5 bg-slate-50 hover:bg-blue-50/50 hover:text-blue-600 text-slate-700 rounded-xl text-xs font-bold transition-all gap-1.5"
-              >
-                <Download className="h-5 w-5" />
-                <span>Download Lead</span>
-              </button>
-            </div>
-          </Card>
         </div>
       </div>
 
@@ -760,6 +818,7 @@ export const LeadDetail = () => {
 export const LeadForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [errorMsg, setErrorMsg] = useState(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
@@ -771,18 +830,26 @@ export const LeadForm = () => {
   }, [id]);
 
   const onSubmit = (data) => {
+    setErrorMsg(null);
     const action = id ? axios.put(`/api/v1/leads/${id}`, data) : axios.post('/api/v1/leads', data);
     action.then(() => {
       navigate('/leads');
     }).catch(err => {
-      alert(err.response?.data?.message || 'Submission failed');
+      const msg = err.response?.data?.message || 'Submission failed. Please check the entered fields.';
+      setErrorMsg(msg);
     });
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className=" mx-auto">
       <Card title={id ? 'Edit Lead Profile' : 'Create New Lead Profile'}>
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {errorMsg && (
+            <div className="md:col-span-2 bg-red-50 border border-red-200 text-red-800 p-3.5 rounded-xl text-xs font-bold flex items-center justify-between">
+              <span>⚠️ {errorMsg}</span>
+              <button type="button" onClick={() => setErrorMsg(null)} className="text-red-600 hover:text-red-900 font-extrabold ml-2">✕</button>
+            </div>
+          )}
           <Input label="Client Name" id="client_name" register={register} errors={errors} required />
           <Input label="Mobile Number" id="mobile" register={register} errors={errors} required />
           <Input label="Email Address" id="email" type="email" register={register} errors={errors} />
@@ -845,7 +912,7 @@ export const LeadImportWizard = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className=" mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Import Leads Wizard</h1>
 
       {step === 1 && (

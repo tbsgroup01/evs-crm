@@ -5,8 +5,16 @@ const { leadCreateSchema, leadUpdateSchema } = require('../validators/lead');
 const createLead = async (req, res) => {
   try {
     const validated = leadCreateSchema.parse(req.body);
-    const maxId = await Lead.max('id') || 0;
-    const leadNumber = `LEAD-${1000 + maxId + 1}`;
+    const maxId = (await Lead.max('id', { paranoid: false })) || 0;
+    let nextNum = 1000 + maxId + 1;
+    let leadNumber = `LEAD-${nextNum}`;
+
+    let exists = await Lead.findOne({ where: { lead_number: leadNumber }, paranoid: false });
+    while (exists) {
+      nextNum += 1;
+      leadNumber = `LEAD-${nextNum}`;
+      exists = await Lead.findOne({ where: { lead_number: leadNumber }, paranoid: false });
+    }
 
     const lead = await Lead.create({
       ...validated,
@@ -26,7 +34,13 @@ const createLead = async (req, res) => {
 
     return res.status(201).json({ success: true, data: lead });
   } catch (error) {
-    return res.status(400).json({ success: false, message: error.message || 'Validation failed', errors: error.errors || [] });
+    let message = error.message || 'Validation failed';
+    if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+      message = error.issues.map((i) => `${i.path.join('.') || 'field'}: ${i.message}`).join(', ');
+    } else if (error.errors && Array.isArray(error.errors) && error.errors.length > 0) {
+      message = error.errors.map((e) => e.message || e.msg || 'Invalid field').join(', ');
+    }
+    return res.status(400).json({ success: false, message, errors: error.issues || error.errors || [] });
   }
 };
 
@@ -262,7 +276,7 @@ const exportLeads = async (req, res) => {
       const cityVal = (l.city || '').replace(/"/g, '""');
       const leadSource = (l.lead_source || l.leadSource || '').replace(/"/g, '""');
       const createdAtDate = l.created_at || l.createdAt || new Date();
-      
+
       csv += `"${l.lead_number}","${clientName}","${mobile}","${email}","${countryVal}","${cityVal}","${l.status}","${leadSource}",${budget},"${createdAtDate.toISOString()}"\n`;
     });
 
@@ -380,15 +394,45 @@ const getLeadsStats = async (req, res) => {
   }
 };
 
+const bulkDeleteLeads = async (req, res) => {
+  try {
+    const { lead_ids } = req.body;
+    if (!lead_ids || !Array.isArray(lead_ids) || lead_ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Lead IDs array is required' });
+    }
+
+    const where = { id: { [Op.in]: lead_ids } };
+    if (req.user.role.name === 'COUNSELOR') {
+      where.counselor_id = req.user.id;
+    }
+
+    const count = await Lead.destroy({ where });
+
+    await ActivityLog.create({
+      user_id: req.user.id,
+      entity_type: 'Lead',
+      action: 'BULK_DELETE_LEADS',
+      description: `Bulk deleted ${count} leads by ${req.user.name}`,
+      ip_address: req.ip
+    });
+
+    return res.status(200).json({ success: true, message: `Successfully deleted ${count} leads` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete leads', errors: [error.message] });
+  }
+};
+
 module.exports = {
   createLead,
   getLeads,
   getLeadById,
   updateLead,
   deleteLead,
+  bulkDeleteLeads,
   updateLeadStatus,
   exportLeads,
   getLeadInteractions,
   createLeadInteraction,
   getLeadsStats
 };
+

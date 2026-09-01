@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Clipboard, DollarSign, FileText, Search, ArrowLeft, Check, Activity, User, Folder, CreditCard } from 'lucide-react';
+import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Clipboard, DollarSign, FileText, Search, ArrowLeft, Check, Activity, User, Folder, CreditCard, Trash2 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -66,6 +66,32 @@ export const CaseList = () => {
     });
   };
 
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected case(s)?`)) {
+      axios.post('/api/v1/cases/bulk-delete', {
+        case_ids: selectedIds
+      }).then(() => {
+        setSelectedIds([]);
+        fetchCases();
+      }).catch(err => {
+        alert(err.response?.data?.message || 'Failed to delete cases');
+      });
+    }
+  };
+
+  const handleSingleAssign = (caseId, newManagerId) => {
+    if (!newManagerId) return;
+    axios.post('/api/v1/cases/bulk-assign', {
+      case_ids: [caseId],
+      case_manager_id: newManagerId
+    }).then(() => {
+      fetchCases();
+    }).catch(err => {
+      alert(err.response?.data?.message || 'Failed to assign case manager');
+    });
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -125,6 +151,13 @@ export const CaseList = () => {
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 Assign Manager {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+              </button>
+              <button
+                disabled={selectedIds.length === 0}
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" /> Bulk Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
               </button>
             </>
           )}
@@ -210,20 +243,55 @@ export const CaseList = () => {
             <Link to={`/cases/${c.id}`} className="text-blue-600 font-semibold hover:underline">{c.case_number}</Link>,
             c.Lead?.client_name || 'N/A',
             c.Lead?.email || 'N/A',
-            c.caseManager ? c.caseManager.name : <span className="text-xs text-gray-400">Unassigned</span>,
+            (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') ? (
+              <select
+                value={c.case_manager_id || c.caseManager?.id || ''}
+                onChange={(e) => handleSingleAssign(c.id, e.target.value)}
+                className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${
+                  !(c.case_manager_id || c.caseManager?.id)
+                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
+                }`}
+              >
+                <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
+                  Unassigned
+                </option>
+                {managers.map(m => (
+                  <option key={m.id} value={m.id} className="bg-white text-slate-800 font-medium">
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              c.caseManager ? (
+                c.caseManager.name
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                  Unassigned
+                </span>
+              )
+            ),
             <StatusBadge status={c.status} />,
             formatDate(c.created_at || c.createdAt),
             <div className="flex items-center gap-2">
-              <Link to={`/cases/${c.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all">
+              <Link to={`/cases/${c.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all" title="View Case Details">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </Link>
-              <button className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-slate-900 transition-all">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
+              {(user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete case ${c.case_number}?`)) {
+                      axios.delete(`/api/v1/cases/${c.id}`).then(() => fetchCases()).catch(err => alert(err.response?.data?.message || 'Failed to delete case'));
+                    }
+                  }}
+                  className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center"
+                  title="Delete Case"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ])}
         />
@@ -561,7 +629,7 @@ export const CaseDetail = () => {
             headers={['Document Type', 'File Name', 'Status', 'Actions']}
             rows={documents.map(d => [
               <span className="font-bold text-slate-700">{d.DocumentType?.name}</span>,
-              <a href={`https://evs-crm.towsindia.com/api/v1/documents/${d.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
+              <a href={`http://localhost:5505/api/v1/documents/${d.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
               <StatusBadge status={d.status} />,
               <div className="flex items-center gap-3">
                 {d.status === 'UPLOADED' && (
@@ -593,7 +661,7 @@ export const CaseDetail = () => {
               <span className="font-mono text-xs">{p.transaction_id || 'N/A'}</span>,
               <span className="text-xs text-gray-500 block max-w-xs truncate" title={p.notes}>{p.notes || 'N/A'}</span>,
               p.receipt_path ? (
-                <a href={`https://evs-crm.towsindia.com/api/v1/payments/${p.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
+                <a href={`http://localhost:5505/api/v1/payments/${p.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
               ) : <span className="text-xs text-gray-400">No Proof</span>,
               <span className="text-xs font-semibold text-slate-700">{new Date(p.payment_date).toLocaleDateString()}</span>
             ])}

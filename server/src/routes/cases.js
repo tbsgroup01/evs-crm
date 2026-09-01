@@ -4,6 +4,8 @@ const {
   getCases,
   getCaseById,
   updateCase,
+  deleteCase,
+  bulkDeleteCases,
   updateCaseStatus,
   addCaseNote,
   exportCases
@@ -35,12 +37,14 @@ const router = express.Router();
 
 router.post('/leads/:id/convert', authenticate, convertLeadToCase);
 
-router.get('/cases', authenticate, getCases);
-router.get('/cases/export', authenticate, exportCases);
+router.get('/cases', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), getCases);
+router.get('/cases/export', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), exportCases);
 router.get('/cases/unassigned', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getUnassignedCases);
 router.get('/case-managers/workload', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getCaseManagerWorkload);
-router.get('/cases/:id', authenticate, getCaseById);
+router.get('/cases/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), getCaseById);
 router.put('/cases/:id', authenticate, updateCase);
+router.delete('/cases/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), deleteCase);
+router.post('/cases/bulk-delete', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkDeleteCases);
 router.patch('/cases/:id/status', authenticate, updateCaseStatus);
 router.post('/cases/:id/assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), assignCase);
 router.post('/cases/bulk-assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkAssignCases);

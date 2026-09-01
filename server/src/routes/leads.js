@@ -5,6 +5,7 @@ const {
   getLeadById,
   updateLead,
   deleteLead,
+  bulkDeleteLeads,
   updateLeadStatus,
   exportLeads,
   getLeadInteractions,
@@ -44,11 +45,13 @@ router.get('/leads/stats', authenticate, getLeadsStats);
 router.get('/leads/:id', authenticate, getLeadById);
 router.put('/leads/:id', authenticate, updateLead);
 router.delete('/leads/:id', authenticate, deleteLead);
+router.post('/leads/bulk-delete', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkDeleteLeads);
 router.patch('/leads/:id/status', authenticate, updateLeadStatus);
 
 router.post('/leads/:id/assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), assignLead);
 router.post('/leads/:id/reassign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), reassignLead);
 router.post('/leads/bulk-assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkAssignLeads);
+
 router.get('/counselors/workload', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getCounselorWorkload);
 
 router.get('/leads/:id/interactions', authenticate, getLeadInteractions);

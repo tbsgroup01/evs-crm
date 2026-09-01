@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'evs-crm-api',
+      name: 'evg-crm-api',
       script: 'index.js',
       instances: 'max',
       exec_mode: 'cluster',

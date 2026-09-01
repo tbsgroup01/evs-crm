@@ -21,11 +21,13 @@ export const SettingsPanel = () => {
   const [activeTab, setActiveTab] = useState('general');
 
   // General Settings State
-  const [appName, setAppName] = useState('EVS CRM');
+  const [appName, setAppName] = useState('EVG CRM');
   const [contactNo, setContactNo] = useState('+971 4 123 4567');
-  const [contactEmail, setContactEmail] = useState('support@evscrm.com');
+  const [contactEmail, setContactEmail] = useState('support@evgcrm.com');
   const [logoPreview, setLogoPreview] = useState('');
   const [faviconPreview, setFaviconPreview] = useState('');
+  const [logoError, setLogoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
   const [faviconFile, setFaviconFile] = useState(null);
   const [generalSaving, setGeneralSaving] = useState(false);
@@ -37,8 +39,8 @@ export const SettingsPanel = () => {
   const [mailPort, setMailPort] = useState('587');
   const [mailUser, setMailUser] = useState('');
   const [mailPass, setMailPass] = useState('');
-  const [mailFromName, setMailFromName] = useState('EVS CRM System');
-  const [mailFromAddress, setMailFromAddress] = useState('no-reply@evscrm.com');
+  const [mailFromName, setMailFromName] = useState('EVG CRM System');
+  const [mailFromAddress, setMailFromAddress] = useState('no-reply@evgcrm.com');
   const [showPass, setShowPass] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailAlert, setEmailAlert] = useState(null);
@@ -47,6 +49,15 @@ export const SettingsPanel = () => {
   const [testEmail, setTestEmail] = useState('');
   const [testingEmail, setTestingEmail] = useState(false);
   const [testResult, setTestResult] = useState(null);
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -60,8 +71,14 @@ export const SettingsPanel = () => {
         if (general.app_name) setAppName(general.app_name);
         if (general.contact_no) setContactNo(general.contact_no);
         if (general.contact_email) setContactEmail(general.contact_email);
-        if (general.logo_icon) setLogoPreview(general.logo_icon);
-        if (general.favicon_icon) setFaviconPreview(general.favicon_icon);
+        if (general.logo_icon) {
+          setLogoPreview(general.logo_icon);
+          setLogoError(false);
+        }
+        if (general.favicon_icon) {
+          setFaviconPreview(general.favicon_icon);
+          setFaviconError(false);
+        }
 
         if (email.mail_app) setMailApp(email.mail_app);
         if (email.mail_host) setMailHost(email.mail_host);
@@ -80,6 +97,7 @@ export const SettingsPanel = () => {
     const file = e.target.files[0];
     if (file) {
       setLogoFile(file);
+      setLogoError(false);
       setLogoPreview(URL.createObjectURL(file));
     }
   };
@@ -88,6 +106,7 @@ export const SettingsPanel = () => {
     const file = e.target.files[0];
     if (file) {
       setFaviconFile(file);
+      setFaviconError(false);
       setFaviconPreview(URL.createObjectURL(file));
     }
   };
@@ -188,7 +207,7 @@ export const SettingsPanel = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">System Settings</h1>
         <p className="text-sm text-slate-500">Manage branding, general preferences, and email integration.</p>
@@ -199,11 +218,10 @@ export const SettingsPanel = () => {
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('general')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-              activeTab === 'general'
-                ? 'border-slate-900 text-slate-900 font-semibold'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === 'general'
+              ? 'border-slate-900 text-slate-900 font-semibold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <Globe className="w-4 h-4" />
             General Settings
@@ -211,11 +229,10 @@ export const SettingsPanel = () => {
 
           <button
             onClick={() => setActiveTab('email')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
-              activeTab === 'email'
-                ? 'border-slate-900 text-slate-900 font-semibold'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+            className={`py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${activeTab === 'email'
+              ? 'border-slate-900 text-slate-900 font-semibold'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
           >
             <Mail className="w-4 h-4" />
             Email Configuration
@@ -228,9 +245,8 @@ export const SettingsPanel = () => {
         <form onSubmit={handleSaveGeneral} className="space-y-6">
           {generalAlert && (
             <div
-              className={`p-4 rounded-lg flex items-center gap-3 text-sm font-medium ${
-                generalAlert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
+              className={`p-4 rounded-lg flex items-center gap-3 text-sm font-medium ${generalAlert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
             >
               {generalAlert.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5 text-red-600" />}
               {generalAlert.message}
@@ -246,7 +262,7 @@ export const SettingsPanel = () => {
                     id="app_name"
                     value={appName}
                     onChange={(e) => setAppName(e.target.value)}
-                    placeholder="EVS CRM"
+                    placeholder="EVG CRM"
                     required
                   />
 
@@ -265,7 +281,7 @@ export const SettingsPanel = () => {
                       type="email"
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
-                      placeholder="support@evscrm.com"
+                      placeholder="support@evgcrm.com"
                     />
                   </div>
                 </div>
@@ -277,10 +293,15 @@ export const SettingsPanel = () => {
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">Logo Icon</label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-slate-400 transition-colors bg-gray-50">
-                      {logoPreview ? (
+                      {logoPreview && !logoError ? (
                         <div className="space-y-3">
-                          <img src={logoPreview} alt="Logo Preview" className="h-16 mx-auto object-contain" />
-                          <p className="text-xs text-gray-500">Current Logo Preview</p>
+                          <img
+                            src={getImageUrl(logoPreview)}
+                            alt="Logo Preview"
+                            className="h-16 mx-auto object-contain"
+                            onError={() => setLogoError(true)}
+                          />
+                          <p className="text-xs text-gray-500 font-medium">Current Logo Preview</p>
                         </div>
                       ) : (
                         <div className="space-y-2 py-2">
@@ -301,10 +322,15 @@ export const SettingsPanel = () => {
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700">Favicon Icon</label>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-slate-400 transition-colors bg-gray-50">
-                      {faviconPreview ? (
+                      {faviconPreview && !faviconError ? (
                         <div className="space-y-3">
-                          <img src={faviconPreview} alt="Favicon Preview" className="h-12 w-12 mx-auto object-contain" />
-                          <p className="text-xs text-gray-500">Current Favicon Preview</p>
+                          <img
+                            src={getImageUrl(faviconPreview)}
+                            alt="Favicon Preview"
+                            className="h-12 w-12 mx-auto object-contain"
+                            onError={() => setFaviconError(true)}
+                          />
+                          <p className="text-xs text-gray-500 font-medium">Current Favicon Preview</p>
                         </div>
                       ) : (
                         <div className="space-y-2 py-2">
@@ -357,9 +383,8 @@ export const SettingsPanel = () => {
         <div className="space-y-6">
           {emailAlert && (
             <div
-              className={`p-4 rounded-lg flex items-center gap-3 text-sm font-medium ${
-                emailAlert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
+              className={`p-4 rounded-lg flex items-center gap-3 text-sm font-medium ${emailAlert.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
             >
               {emailAlert.type === 'success' ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <AlertCircle className="w-5 h-5 text-red-600" />}
               {emailAlert.message}
@@ -454,7 +479,7 @@ export const SettingsPanel = () => {
                       id="mail_from_name"
                       value={mailFromName}
                       onChange={(e) => setMailFromName(e.target.value)}
-                      placeholder="EVS CRM System"
+                      placeholder="EVG CRM System"
                     />
 
                     <Input
@@ -463,7 +488,7 @@ export const SettingsPanel = () => {
                       type="email"
                       value={mailFromAddress}
                       onChange={(e) => setMailFromAddress(e.target.value)}
-                      placeholder="no-reply@evscrm.com"
+                      placeholder="no-reply@evgcrm.com"
                     />
                   </div>
 
@@ -506,11 +531,10 @@ export const SettingsPanel = () => {
 
                   {testResult && (
                     <div
-                      className={`p-3 rounded-md text-xs font-medium ${
-                        testResult.type === 'success'
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                          : 'bg-red-50 text-red-800 border border-red-200'
-                      }`}
+                      className={`p-3 rounded-md text-xs font-medium ${testResult.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                        }`}
                     >
                       <div className="flex items-start gap-2">
                         {testResult.type === 'success' ? (

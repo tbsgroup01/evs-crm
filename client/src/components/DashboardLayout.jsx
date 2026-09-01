@@ -12,11 +12,46 @@ export const DashboardLayout = ({ children }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [logoIcon, setLogoIcon] = useState('');
+  const [faviconIcon, setFaviconIcon] = useState('');
+  const [appName, setAppName] = useState('EVG CRM');
   const navigate = useNavigate();
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
 
   useEffect(() => {
     if (user) {
-      axios.get('/api/v1/notifications').then(res => setNotifications(res.data.data || []));
+      axios.get('/api/v1/notifications').then((res) => setNotifications(res.data.data || []));
+      axios
+        .get('/api/v1/settings/branding')
+        .then((res) => {
+          if (res.data.success && res.data.data) {
+            const { logo_icon, favicon_icon, app_name } = res.data.data;
+            if (logo_icon) setLogoIcon(logo_icon);
+            if (favicon_icon) {
+              setFaviconIcon(favicon_icon);
+              let link = document.querySelector("link[rel~='icon']");
+              if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.getElementsByTagName('head')[0].appendChild(link);
+              }
+              link.href = getImageUrl(favicon_icon);
+            }
+            if (app_name) {
+              setAppName(app_name);
+              document.title = app_name;
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [user]);
 
@@ -24,7 +59,7 @@ export const DashboardLayout = ({ children }) => {
     const val = e.target.value;
     setSearchVal(val);
     if (val.trim().length > 1) {
-      axios.get(`/api/v1/search?q=${val}`).then(res => setSearchResults(res.data.data || []));
+      axios.get(`/api/v1/search?q=${val}`).then((res) => setSearchResults(res.data.data || []));
     } else {
       setSearchResults([]);
     }
@@ -32,15 +67,22 @@ export const DashboardLayout = ({ children }) => {
 
   const markNotifRead = (id) => {
     axios.patch(`/api/v1/notifications/${id}/read`).then(() => {
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
     });
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex">
-      <Sidebar user={user} logout={logout} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <Sidebar
+        user={user}
+        logout={logout}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
+        logoIcon={logoIcon}
+        appName={appName}
+      />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
         <Navbar

@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getSettings, updateSettings, sendTestEmail } = require('../controllers/setting');
+const { getSettings, getBrandingSettings, updateSettings, sendTestEmail } = require('../controllers/setting');
 const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -25,7 +25,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/', authenticate, getSettings);
+router.get('/branding', authenticate, getBrandingSettings);
+router.get('/', authenticate, authorize('ADMIN'), getSettings);
 router.put(
   '/',
   authenticate,

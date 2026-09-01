@@ -1,4 +1,4 @@
-# EVS CRM & Case Management System
+# EVG CRM & Case Management System
 
 A production-ready business CRM and Case Management Web Application designed for enterprise workflows (Lead Upload, Counselor Action, Case Manager Allocation, Secure Document Verification, Pricing Package Locking, Payment Tracking, and Admin Reports).
 
@@ -9,7 +9,7 @@ A production-ready business CRM and Case Management Web Application designed for
 ## Folder Structure
 
 ```
-EVS-crm/
+EVG-crm/
 ├── client/                     # Vite + React Frontend
 │   ├── src/
 │   │   ├── components/
@@ -52,7 +52,7 @@ EVS-crm/
    DB_PORT=3306
    DB_USERNAME=root
    DB_PASSWORD=yourpassword
-   DB_NAME=evs-crm
+   DB_NAME=evg-crm
    JWT_SECRET=your_jwt_secret
    JWT_REFRESH_SECRET=your_refresh_secret
    CLIENT_URL=http://localhost:5173
@@ -95,10 +95,10 @@ pm2 start ecosystem.config.js --env production
 ```
 
 ### 2. PM2 Commands
-- **View logs**: `pm2 logs evs-crm-api`
+- **View logs**: `pm2 logs evg-crm-api`
 - **View status**: `pm2 status`
-- **Restart application**: `pm2 restart evs-crm-api`
-- **Stop application**: `pm2 stop evs-crm-api`
+- **Restart application**: `pm2 restart evg-crm-api`
+- **Stop application**: `pm2 stop evg-crm-api`
 
 ### 3. Nginx Server Configuration (Reverse Proxy)
 Add reverse proxy settings in your `/etc/nginx/sites-available/default`:
@@ -109,7 +109,7 @@ server {
 
     # Static build
     location / {
-        root /var/www/evs-crm/client/dist;
+        root /var/www/evg-crm/client/dist;
         index index.html;
         try_files $uri /index.html;
     }
@@ -130,9 +130,9 @@ server {
 
 - **Daily Backup**:
   ```bash
-  mysqldump -u root -p evs-crm > crm_backup_$(date +%F).sql
+  mysqldump -u root -p evg-crm > crm_backup_$(date +%F).sql
   ```
 - **Restore Database**:
   ```bash
-  mysql -u root -p evs-crm < crm_backup.sql
+  mysql -u root -p evg-crm < crm_backup.sql
   ```

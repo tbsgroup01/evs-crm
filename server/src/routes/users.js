@@ -12,14 +12,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(authenticate, authorize('ADMIN'));
-
-router.get('/users', getUsers);
-router.post('/users', createUser);
-router.get('/users/:id', getUserById);
-router.put('/users/:id', updateUser);
-router.patch('/users/:id/status', toggleUserStatus);
-router.post('/users/:id/reset-password', resetPassword);
-router.get('/users/:id/activity', getUserActivity);
+router.get('/users', authenticate, authorize('ADMIN'), getUsers);
+router.post('/users', authenticate, authorize('ADMIN'), createUser);
+router.get('/users/:id', authenticate, authorize('ADMIN'), getUserById);
+router.put('/users/:id', authenticate, authorize('ADMIN'), updateUser);
+router.patch('/users/:id/status', authenticate, authorize('ADMIN'), toggleUserStatus);
+router.post('/users/:id/reset-password', authenticate, authorize('ADMIN'), resetPassword);
+router.get('/users/:id/activity', authenticate, authorize('ADMIN'), getUserActivity);
 
 module.exports = router;

@@ -284,7 +284,7 @@ const exportCases = async (req, res) => {
       const email = (c.Lead?.email || '').replace(/"/g, '""');
       const managerName = c.caseManager ? c.caseManager.name : 'Unassigned';
       const createdAtDate = c.created_at || c.createdAt || new Date();
-      
+
       csv += `"${c.case_number}","${clientName}","${email}","${managerName}","${c.status}","${createdAtDate.toISOString().split('T')[0]}"\n`;
     });
 
@@ -296,12 +296,70 @@ const exportCases = async (req, res) => {
   }
 };
 
+const deleteCase = async (req, res) => {
+  try {
+    const where = { id: req.params.id };
+    if (req.user.role.name === 'CASE_MANAGER') {
+      where.case_manager_id = req.user.id;
+    }
+
+    const singleCase = await Case.findOne({ where });
+    if (!singleCase) return res.status(404).json({ success: false, message: 'Case not found' });
+
+    await singleCase.destroy();
+
+    await ActivityLog.create({
+      user_id: req.user.id,
+      entity_type: 'Case',
+      entity_id: req.params.id,
+      action: 'DELETE_CASE',
+      description: `Case ${singleCase.case_number} deleted by ${req.user.name}`,
+      ip_address: req.ip
+    });
+
+    return res.status(200).json({ success: true, message: 'Case deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete case', errors: [error.message] });
+  }
+};
+
+const bulkDeleteCases = async (req, res) => {
+  try {
+    const { case_ids } = req.body;
+    if (!case_ids || !Array.isArray(case_ids) || case_ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Case IDs array is required' });
+    }
+
+    const where = { id: { [Op.in]: case_ids } };
+    if (req.user.role.name === 'CASE_MANAGER') {
+      where.case_manager_id = req.user.id;
+    }
+
+    const count = await Case.destroy({ where });
+
+    await ActivityLog.create({
+      user_id: req.user.id,
+      entity_type: 'Case',
+      action: 'BULK_DELETE_CASES',
+      description: `Bulk deleted ${count} cases by ${req.user.name}`,
+      ip_address: req.ip
+    });
+
+    return res.status(200).json({ success: true, message: `Successfully deleted ${count} cases` });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to delete cases', errors: [error.message] });
+  }
+};
+
 module.exports = {
   convertLeadToCase,
   getCases,
   getCaseById,
   updateCase,
+  deleteCase,
+  bulkDeleteCases,
   updateCaseStatus,
   addCaseNote,
   exportCases
 };
+

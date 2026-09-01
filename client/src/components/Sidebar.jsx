@@ -1,9 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import { Clipboard, Folder, Users, FileText, User as UserIcon, Activity, Settings, LogOut, X, Bell } from 'lucide-react';
 
-export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen }) => {
+export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, appName }) => {
   const location = useLocation();
+  const [imgError, setImgError] = useState(false);
+  const [internalLogo, setInternalLogo] = useState(logoIcon || '');
+  const [internalAppName, setInternalAppName] = useState(appName || 'EVG CRM');
+
+  useEffect(() => {
+    if (logoIcon) {
+      setInternalLogo(logoIcon);
+    }
+    if (appName) {
+      setInternalAppName(appName);
+    }
+  }, [logoIcon, appName]);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [internalLogo]);
+
+  useEffect(() => {
+    axios
+      .get('/api/v1/settings/branding')
+      .then((res) => {
+        if (res.data.success && res.data.data) {
+          if (res.data.data.logo_icon) setInternalLogo(res.data.data.logo_icon);
+          if (res.data.data.app_name) setInternalAppName(res.data.data.app_name);
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
 
   const overviewLinks = [
     { label: 'Dashboard', to: '/dashboard', icon: Clipboard }
@@ -61,17 +99,28 @@ export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen }) => {
 
   return (
     <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white text-slate-700 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:h-screen lg:flex lg:flex-col border-r border-gray-100 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="h-20 flex items-center justify-between px-6 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-            <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-              <path d="M12 2L2 22h20L12 2zm0 3l7.5 15h-15L12 5z" />
-            </svg>
-          </div>
-          <div>
-            <span className="text-base font-bold text-slate-800 tracking-wide block">EVS CRM</span>
-            <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase block">Lead to Success</span>
-          </div>
+      <div className="h-20 flex items-center justify-center px-6 border-b border-gray-100 bg-white">
+        <div className="flex items-center gap-3 min-w-0">
+          {internalLogo && !imgError ? (
+            <img
+              src={getImageUrl(internalLogo)}
+              alt={internalAppName || 'EVG CRM'}
+              className="h-10 max-w-[150px] object-contain"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <>
+              <div className="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 flex-shrink-0">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2L2 22h20L12 2zm0 3l7.5 15h-15L12 5z" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <span className="text-base font-bold text-slate-800 tracking-wide block truncate">{internalAppName || 'EVG CRM'}</span>
+                <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase block truncate">Lead to Success</span>
+              </div>
+            </>
+          )}
         </div>
         <button onClick={() => setMobileOpen(false)} className="lg:hidden text-slate-400 hover:text-slate-650">
           <X className="h-6 w-6" />

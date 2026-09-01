@@ -3,11 +3,11 @@ const { Setting, ActivityLog } = require('../models');
 
 const DEFAULT_SETTINGS = {
   general: {
-    app_name: 'EVS CRM',
+    app_name: 'EVG CRM',
     logo_icon: '',
     favicon_icon: '',
     contact_no: '+971 4 123 4567',
-    contact_email: 'support@evscrm.com'
+    contact_email: 'support@evgcrm.com'
   },
   email: {
     mail_app: 'Gmail',
@@ -15,8 +15,8 @@ const DEFAULT_SETTINGS = {
     mail_port: '587',
     mail_user: '',
     mail_pass: '',
-    mail_from_name: 'EVS CRM System',
-    mail_from_address: 'no-reply@evscrm.com'
+    mail_from_name: 'EVG CRM System',
+    mail_from_address: 'no-reply@evgcrm.com'
   }
 };
 
@@ -147,17 +147,17 @@ const sendTestEmail = async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: `"EVS CRM System" <${user}>`,
+      from: `"EVG CRM System" <${user}>`,
       to: to_email,
-      subject: 'EVS CRM - Test Email Configuration',
-      text: 'This is a test email sent from EVS CRM to verify your Email Configuration settings.',
+      subject: 'EVG CRM - Test Email Configuration',
+      text: 'This is a test email sent from EVG CRM to verify your Email Configuration settings.',
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e2e8f0; rounded: 8px;">
-          <h2 style="color: #0f172a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">EVS CRM Email Configuration Test</h2>
+          <h2 style="color: #0f172a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px;">EVG CRM Email Configuration Test</h2>
           <p>Hello,</p>
-          <p>This email confirms that your <strong>EVS CRM</strong> Mail Configuration (App: <i>${mail_app || 'SMTP'}</i>) is working correctly!</p>
+          <p>This email confirms that your <strong>EVG CRM</strong> Mail Configuration (App: <i>${mail_app || 'SMTP'}</i>) is working correctly!</p>
           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #64748b;">Sent automatically by EVS CRM Settings Panel.</p>
+          <p style="font-size: 12px; color: #64748b;">Sent automatically by EVG CRM Settings Panel.</p>
         </div>
       `
     });
@@ -174,8 +174,40 @@ const sendTestEmail = async (req, res) => {
   }
 };
 
+const getBrandingSettings = async (req, res) => {
+  try {
+    const settingsRows = await Setting.findAll({
+      where: {
+        key: ['app_name', 'logo_icon', 'favicon_icon']
+      }
+    });
+
+    const branding = {
+      app_name: 'EVG CRM',
+      logo_icon: '',
+      favicon_icon: ''
+    };
+
+    settingsRows.forEach((row) => {
+      branding[row.key] = row.value;
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: branding
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch branding settings',
+      errors: [error.message]
+    });
+  }
+};
+
 module.exports = {
   getSettings,
+  getBrandingSettings,
   updateSettings,
   sendTestEmail
 };

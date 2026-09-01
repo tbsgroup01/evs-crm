@@ -7,14 +7,20 @@ import {
   AlertTriangle,
   Info,
   Check,
-  Users,
   Loader2,
   MailCheck,
   AlertCircle,
   Mail,
   Search,
+  Users,
   Filter,
-  UserCheck
+  Clock,
+  Eye,
+  Copy,
+  Tag,
+  FileText,
+  Inbox,
+  Sparkles
 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -28,6 +34,8 @@ export const NotificationsList = () => {
   const { user } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [selectedNotification, setSelectedNotification] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // User Broadcast State
   const [dispatchGroup, setDispatchGroup] = useState('ALL');
@@ -61,8 +69,30 @@ export const NotificationsList = () => {
 
   const fetchNotifications = () => {
     axios.get('/api/v1/notifications').then((res) => {
-      setNotifications(res.data.data || []);
+      const list = res.data.data || [];
+      setNotifications(list);
+      if (list.length > 0) {
+        setSelectedNotification((prev) => {
+          if (!prev) return list[0];
+          const updated = list.find((item) => item.id === prev.id);
+          return updated || list[0];
+        });
+      }
     });
+  };
+
+  const handleCopyMessage = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSelectNotification = (n) => {
+    setSelectedNotification(n);
+    if (!n.is_read) {
+      handleMarkAsRead(n.id);
+    }
   };
 
   const fetchUsers = () => {
@@ -83,12 +113,14 @@ export const NotificationsList = () => {
   const handleMarkAsRead = (id) => {
     axios.patch(`/api/v1/notifications/${id}/read`).then(() => {
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+      setSelectedNotification((prev) => (prev && prev.id === id ? { ...prev, is_read: true } : prev));
     });
   };
 
   const handleMarkAllAsRead = () => {
     axios.patch('/api/v1/notifications/read-all').then(() => {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setSelectedNotification((prev) => (prev ? { ...prev, is_read: true } : prev));
     });
   };
 
@@ -234,97 +266,232 @@ export const NotificationsList = () => {
   const getIcon = (t) => {
     switch (t) {
       case 'SUCCESS':
-        return <CheckCircle className="h-5 w-5 text-emerald-500" />;
+        return (
+          <div className="h-10 w-10 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-inner border border-emerald-200">
+            <CheckCircle className="h-5 w-5" />
+          </div>
+        );
       case 'WARNING':
-        return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+        return (
+          <div className="h-10 w-10 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-inner border border-amber-200">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+        );
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return (
+          <div className="h-10 w-10 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-inner border border-blue-200">
+            <Info className="h-5 w-5" />
+          </div>
+        );
+    }
+  };
+
+  const getHeaderGradient = (t) => {
+    switch (t) {
+      case 'SUCCESS':
+        return 'from-emerald-600 via-teal-600 to-emerald-700 shadow-emerald-500/10';
+      case 'WARNING':
+        return 'from-amber-500 via-orange-500 to-amber-600 shadow-amber-500/10';
+      default:
+        return 'from-blue-600 via-indigo-600 to-blue-700 shadow-blue-500/10';
     }
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 mx-auto">
+      {/* Top Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notifications & Broadcasts</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Read system alerts, send corporate broadcasts, or email announcements to leads.</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Notifications & Broadcasts</h1>
+          <p className="text-xs text-slate-500 mt-1 font-medium">Read system alerts, inspect notification details, or dispatch corporate broadcasts.</p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {canBroadcast && (
-            <Button
+            <button
               onClick={() => {
                 fetchLeads();
                 setOpenLeadsModal(true);
               }}
-              className="flex items-center gap-2 bg-indigo-950 text-white hover:bg-slate-800"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-900 to-slate-900 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
             >
-              <Mail className="h-4 w-4" /> Broadcast Email to Leads
-            </Button>
+              <Mail className="h-4 w-4 text-indigo-300" /> Broadcast Email to Leads
+            </button>
           )}
 
           {notifications.some((n) => !n.is_read) && (
             <button
               onClick={handleMarkAllAsRead}
-              className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
             >
-              <Check className="h-4 w-4" /> Mark All as Read
+              <Check className="h-4 w-4 text-emerald-600" /> Mark All as Read
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Notification Inbox */}
-        <div className="lg:col-span-2 space-y-4">
-          <Card title="My Inbox">
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left Column: Inbox List */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-blue-600" />
+                <h2 className="text-base font-extrabold text-slate-900">Notification Inbox</h2>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-100">
+                {notifications.length} Total
+              </span>
+            </div>
+
             {notifications.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 text-sm">
-                <Bell className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+              <div className="text-center py-12 text-slate-400 text-xs font-medium">
+                <Bell className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                 No notifications found.
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => !n.is_read && handleMarkAsRead(n.id)}
-                    className={`flex items-start gap-4 p-4 transition-colors cursor-pointer rounded-xl ${
-                      !n.is_read ? 'bg-blue-50/40 hover:bg-blue-50/70 border-l-4 border-blue-600' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`text-sm ${!n.is_read ? 'font-bold text-slate-900' : 'text-slate-700 font-medium'}`}>
-                          {n.title}
+              <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                {notifications.map((n) => {
+                  const isSelected = selectedNotification?.id === n.id;
+
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => handleSelectNotification(n)}
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl transition-all cursor-pointer border ${isSelected
+                        ? 'bg-blue-50/70 border-blue-300 shadow-md ring-2 ring-blue-500/20'
+                        : !n.is_read
+                          ? 'bg-slate-50/90 border-blue-200/80 hover:bg-blue-50/40'
+                          : 'bg-white border-slate-100 hover:bg-slate-50/70'
+                        }`}
+                    >
+                      <div className="flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`text-xs truncate ${!n.is_read ? 'font-black text-slate-900' : 'text-slate-700 font-bold'}`}>
+                            {n.title}
+                          </p>
+                          {!n.is_read && <span className="h-2 w-2 rounded-full bg-blue-600 flex-shrink-0" />}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed font-medium">{n.message}</p>
+                        <p className="text-[10px] text-slate-400 font-semibold mt-1.5">
+                          {new Date(n.created_at || n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
-                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                          {new Date(n.created_at || n.createdAt).toLocaleString()}
-                        </span>
                       </div>
-                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">{n.message}</p>
                     </div>
-                    {!n.is_read && <span className="h-2 w-2 rounded-full bg-blue-600 flex-shrink-0 mt-2" />}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-          </Card>
+          </div>
         </div>
 
-        {/* Send Broadcast Panel */}
-        {canBroadcast && (
-          <div className="space-y-6">
-            <Card title="Send Broadcast Notification">
+        {/* Right Column: Notification Details Viewer + Broadcast or Summary Widget */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Card 1: Notification Details Viewer */}
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Info className="h-5 w-5 text-blue-600" />
+                <h2 className="text-base font-extrabold text-slate-900">Notification Details</h2>
+              </div>
+
+
+            </div>
+
+            {selectedNotification ? (
+              <div className="space-y-5">
+                {/* Hero Header Banner for Selected Notification */}
+                <div className={`bg-gradient-to-r ${getHeaderGradient(selectedNotification.type)} rounded-2xl p-5 text-white shadow-lg relative overflow-hidden`}>
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black bg-white/20 text-white uppercase tracking-wider backdrop-blur-md">
+                      {selectedNotification.type || 'SYSTEM_ALERT'}
+                    </span>
+                    <span className="text-[11px] text-white/80 font-medium">
+                      {new Date(selectedNotification.created_at || selectedNotification.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-white leading-snug">{selectedNotification.title}</h3>
+                </div>
+
+                {/* Metadata Info Badges Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="h-9 w-9 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-bold">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">RECEIVED TIME</p>
+                      <p className="text-xs font-black text-slate-900 mt-0.5">
+                        {new Date(selectedNotification.created_at || selectedNotification.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="h-9 w-9 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center font-bold">
+                      <Eye className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">STATUS</p>
+                      <p className="text-xs font-black text-slate-900 mt-0.5 flex items-center gap-1">
+                        {selectedNotification.is_read ? (
+                          <span className="text-emerald-600 font-bold flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Read
+                          </span>
+                        ) : (
+                          <span className="text-blue-600 font-bold">● Unread</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="h-9 w-9 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center font-bold">
+                      <Tag className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">CATEGORY</p>
+                      <p className="text-xs font-black text-slate-900 mt-0.5">{selectedNotification.type || 'SYSTEM_ALERT'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message Body Display Box */}
+                <div className="bg-slate-50/60 p-5 rounded-2xl border border-slate-100 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span>Notification Message</span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-800 leading-relaxed pt-1 whitespace-pre-wrap">
+                    {selectedNotification.message}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-400 text-xs font-medium">
+                <Bell className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                Select a notification from the inbox list to view full details.
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: Send Broadcast Panel (Admin/Manager) OR Inbox Stats Widget (Counselors) */}
+          {canBroadcast ? (
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-5">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <Send className="h-5 w-5 text-blue-600" />
+                <h2 className="text-base font-extrabold text-slate-900">Send Broadcast Notification</h2>
+              </div>
+
               <form onSubmit={handleSendNotification} className="space-y-4">
                 {alertStatus && (
                   <div
-                    className={`p-3 rounded-lg flex items-start gap-2 text-xs font-medium ${
-                      alertStatus.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                        : 'bg-red-50 text-red-800 border border-red-200'
-                    }`}
+                    className={`p-3.5 rounded-xl flex items-start gap-2 text-xs font-semibold ${alertStatus.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}
                   >
                     {alertStatus.type === 'success' ? (
                       <MailCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -335,37 +502,51 @@ export const NotificationsList = () => {
                   </div>
                 )}
 
-                <Select
-                  label="Recipients Group"
-                  id="dispatchGroup"
-                  options={[
-                    { value: 'ALL', label: 'All Active Users (Bulk Broadcast)' },
-                    { value: 'ROLE_COUNSELOR', label: 'Counselors Only' },
-                    { value: 'ROLE_CASE_MANAGER', label: 'Case Managers Only' },
-                    { value: 'ROLE_LEAD_MANAGER', label: 'Lead Managers Only' },
-                    { value: 'ROLE_ADMIN', label: 'Administrators Only' },
-                    { value: 'SPECIFIC', label: 'Select Specific Users' }
-                  ]}
-                  value={dispatchGroup}
-                  onChange={(e) => setDispatchGroup(e.target.value)}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Select
+                    label="Recipients Group"
+                    id="dispatchGroup"
+                    options={[
+                      { value: 'ALL', label: 'All Active Users (Bulk Broadcast)' },
+                      { value: 'ROLE_COUNSELOR', label: 'Counselors Only' },
+                      { value: 'ROLE_CASE_MANAGER', label: 'Case Managers Only' },
+                      { value: 'ROLE_LEAD_MANAGER', label: 'Lead Managers Only' },
+                      { value: 'ROLE_ADMIN', label: 'Administrators Only' },
+                      { value: 'SPECIFIC', label: 'Select Specific Users' }
+                    ]}
+                    value={dispatchGroup}
+                    onChange={(e) => setDispatchGroup(e.target.value)}
+                  />
+
+                  <Select
+                    label="Alert Category"
+                    id="type"
+                    options={[
+                      { value: 'SYSTEM_ALERT', label: 'System Alert (Blue)' },
+                      { value: 'SUCCESS', label: 'Success Notification (Green)' },
+                      { value: 'WARNING', label: 'Warning Alert (Orange)' }
+                    ]}
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                  />
+                </div>
 
                 {dispatchGroup === 'SPECIFIC' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Select User Recipients</label>
-                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2.5 space-y-2 bg-white">
+                    <label className="block text-xs font-extrabold text-slate-700">Select User Recipients</label>
+                    <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50/50">
                       {usersList
                         .filter((u) => u.status === 'ACTIVE')
                         .map((u) => (
-                          <label key={u.id} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                          <label key={u.id} className="flex items-center gap-2.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={selectedUserIds.includes(u.id)}
                               onChange={() => toggleUserSelection(u.id)}
-                              className="rounded border-gray-300 text-slate-900 focus:ring-slate-500 h-3.5 w-3.5"
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
                             />
                             <span>
-                              {u.name} <span className="text-[10px] text-gray-400">({u.role})</span>
+                              {u.name} <span className="text-[10px] text-slate-400 font-bold">({u.role})</span>
                             </span>
                           </label>
                         ))}
@@ -373,50 +554,78 @@ export const NotificationsList = () => {
                   </div>
                 )}
 
-                <Select
-                  label="Alert Category"
-                  id="type"
-                  options={[
-                    { value: 'SYSTEM_ALERT', label: 'System Alert (Blue)' },
-                    { value: 'SUCCESS', label: 'Success Notification (Green)' },
-                    { value: 'WARNING', label: 'Warning Alert (Orange)' }
-                  ]}
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                />
-
                 <Input
                   label="Broadcast Title"
                   id="title"
-                  placeholder="e.g., Monthly Meeting Update"
+                  placeholder="e.g., Monthly Strategy Meeting Announcement"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
                 />
 
                 <div className="space-y-1">
-                  <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label htmlFor="message" className="block text-xs font-extrabold text-slate-700 mb-1">
                     Message Content
                   </label>
                   <textarea
                     id="message"
-                    rows="4"
-                    placeholder="Enter full broadcast text to send to in-app & email..."
+                    rows="3"
+                    placeholder="Enter full broadcast text to send to in-app inbox & email..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
                   />
                 </div>
 
-                <Button type="submit" className="w-full flex items-center justify-center gap-2 mt-2" disabled={submitting}>
+                <Button type="submit" className="w-full flex items-center justify-center gap-2 mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-2.5 rounded-xl shadow-md transition-all cursor-pointer" disabled={submitting}>
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   {submitting ? 'Sending Broadcast...' : 'Send Broadcast & Email'}
                 </Button>
               </form>
-            </Card>
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <Sparkles className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-base font-extrabold text-slate-900">Inbox Summary & Quick Tips</h2>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50/70 border border-blue-100 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="h-10 w-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold flex-shrink-0 shadow-md shadow-blue-500/20">
+                    <Inbox className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">TOTAL INBOX</p>
+                    <p className="text-lg font-black text-slate-900 mt-0.5">{notifications.length}</p>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50/70 border border-amber-100 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="h-10 w-10 bg-amber-500 text-white rounded-xl flex items-center justify-center font-bold flex-shrink-0 shadow-md shadow-amber-500/20">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-wider">UNREAD ALERTS</p>
+                    <p className="text-lg font-black text-slate-900 mt-0.5">
+                      {notifications.filter((n) => !n.is_read).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-indigo-50/60 border border-indigo-100/80 p-4 rounded-2xl space-y-1.5">
+                <p className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                  <Info className="h-4 w-4 text-indigo-600" /> Counselor Notification Info
+                </p>
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  System notifications are automatically generated when leads are assigned or updated. Click any notification card in your inbox to read its full message and details.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Broadcast Email to Leads Modal */}
@@ -428,11 +637,10 @@ export const NotificationsList = () => {
         <form onSubmit={handleSendLeadsEmailBroadcast} className="space-y-4 max-w-2xl">
           {leadsAlert && (
             <div
-              className={`p-3 rounded-lg flex items-start gap-2 text-xs font-medium ${
-                leadsAlert.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                  : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
+              className={`p-3 rounded-lg flex items-start gap-2 text-xs font-medium ${leadsAlert.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
             >
               {leadsAlert.type === 'success' ? (
                 <MailCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
