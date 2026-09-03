@@ -39,6 +39,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    nationality: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     city: {
       type: DataTypes.STRING,
       allowNull: true
@@ -49,6 +53,38 @@ module.exports = (sequelize) => {
     },
     service_required: {
       type: DataTypes.STRING,
+      allowNull: true
+    },
+    adults: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
+    },
+    kids: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0
+    },
+    total_pax: {
+      type: DataTypes.INTEGER,
+      defaultValue: 1
+    },
+    package_amount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true
+    },
+    paid_amount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true
+    },
+    pending_amount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true
+    },
+    payment_date: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
+    profit: {
+      type: DataTypes.DECIMAL(12, 2),
       allowNull: true
     },
     lead_source: {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
-import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Trash2, ArrowRight, Search, Users, Phone, Mail, MapPin, User, FolderPlus, ArrowLeft, Check, Activity, FileText, Eye, PlusCircle } from 'lucide-react';
+import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Trash2, ArrowRight, Search, Users, Phone, Mail, MapPin, User, FolderPlus, ArrowLeft, Check, Activity, FileText, Eye, PlusCircle, DollarSign, Globe, UserCheck } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -29,18 +29,19 @@ export const LeadList = () => {
   const [assignCounselorId, setAssignCounselorId] = useState('');
 
   const navigate = useNavigate();
+  const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
 
   useEffect(() => {
     fetchLeads();
   }, [page, status, counselorFilter, search]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') {
+    if (canManageProfit) {
       axios.get('/api/v1/users').then(res => {
         setCounselors(res.data.data.filter(u => u.role === 'COUNSELOR'));
       });
     }
-  }, [user]);
+  }, [user, canManageProfit]);
 
   const fetchLeads = () => {
     const params = { page, limit: 15 };
@@ -133,7 +134,7 @@ export const LeadList = () => {
           <p className="text-sm text-gray-500 mt-1">Total Leads: {total}</p>
         </div>
         <div className="flex items-center gap-3">
-          {(user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') && (
+          {canManageProfit && (
             <>
               <button onClick={() => navigate('/leads/import')} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
                 <Upload className="h-4 w-4" /> Import Leads
@@ -150,7 +151,7 @@ export const LeadList = () => {
                 onClick={handleBulkDelete}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-lg text-sm font-semibold text-white hover:bg-red-700 transition-colors"
               >
-                <Trash2 className="h-4 w-4" /> Bulk Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                <Trash2 className="h-4 w-4" /> Delete {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
               </button>
             </>
           )}
@@ -160,54 +161,59 @@ export const LeadList = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl  p-5 shadow-sm flex items-center justify-between">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Total Leads</span>
-            <span className="text-2xl font-bold text-slate-900 mt-1 block">{stats?.total || 0}</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Leads</span>
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">{stats?.totalLeads || total}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
             <Users className="h-5 w-5" />
           </div>
         </div>
-        <div className="bg-white rounded-xl  p-5 shadow-sm flex items-center justify-between">
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Assigned Leads</span>
-            <span className="text-2xl font-bold text-slate-900 mt-1 block">{stats?.assigned || 0}</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">New Leads</span>
+            <span className="text-2xl font-bold text-blue-600 mt-1 block">{stats?.newLeads || 0}</span>
+          </div>
+          <div className="h-10 w-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
+            <UserCheck className="h-5 w-5" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Interested</span>
+            <span className="text-2xl font-bold text-emerald-600 mt-1 block">{stats?.interestedLeads || 0}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Check className="h-5 w-5" />
           </div>
         </div>
-        <div className="bg-white rounded-xl  p-5 shadow-sm flex items-center justify-between">
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Unassigned Leads</span>
-            <span className="text-2xl font-bold text-slate-900 mt-1 block">{stats?.unassigned || 0}</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Follow Up</span>
+            <span className="text-2xl font-bold text-amber-600 mt-1 block">{stats?.followUpLeads || 0}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <Calendar className="h-5 w-5" />
           </div>
         </div>
-        <div className="bg-white rounded-xl  p-5 shadow-sm flex items-center justify-between">
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">Converted Leads</span>
-            <span className="text-2xl font-bold text-slate-900 mt-1 block">
-              {stats?.ratios?.converted || 0} <span className="text-xs text-slate-400 font-normal">({stats?.total > 0 ? ((stats.ratios.converted / stats.total) * 100).toFixed(0) : 0}%)</span>
-            </span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Converted</span>
+            <span className="text-2xl font-bold text-purple-600 mt-1 block">{stats?.convertedLeads || 0}</span>
           </div>
-          <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
+          <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+            <FolderPlus className="h-5 w-5" />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm ">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
@@ -215,7 +221,7 @@ export const LeadList = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, mobile, email..."
+              placeholder="Search by name, mobile, email or lead number..."
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white"
             />
           </div>
@@ -232,7 +238,7 @@ export const LeadList = () => {
             <option value="COLD_LEAD">COLD LEAD</option>
             <option value="CONVERTED">CONVERTED</option>
           </select>
-          {(user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') && (
+          {canManageProfit && (
             <select
               value={counselorFilter}
               onChange={(e) => setCounselorFilter(e.target.value)}
@@ -251,7 +257,7 @@ export const LeadList = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <DataTable
           headers={[
             <input
@@ -267,76 +273,106 @@ export const LeadList = () => {
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />,
             sortHeader('LEAD NUMBER'),
-            sortHeader('NAME'),
-            sortHeader('MOBILE'),
-            sortHeader('EMAIL'),
+            sortHeader('NAME & MOBILE'),
+            sortHeader('NATIONALITY'),
+            sortHeader('SERVICE / CATEGORY'),
+            sortHeader('PAX (ADULTS/KIDS)'),
+            sortHeader('PACKAGE / PENDING'),
             sortHeader('COUNSELOR'),
+            ...(canManageProfit ? [sortHeader('PROFIT')] : []),
             sortHeader('STATUS'),
             'ACTIONS'
           ]}
-          rows={leads.map(l => [
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(l.id)}
-              onChange={() => toggleSelect(l.id)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />,
-            l.lead_number,
-            <Link to={`/leads/${l.id}`} className="text-blue-600 font-semibold hover:underline">{l.client_name}</Link>,
-            l.mobile,
-            l.email || 'N/A',
-            (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') ? (
-              <select
-                value={l.counselor_id || ''}
-                onChange={(e) => handleSingleAssign(l.id, e.target.value)}
-                className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${!l.counselor_id
-                  ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                  : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
-                  }`}
-              >
-                <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
-                  Unassigned
-                </option>
-                {counselors.map(c => (
-                  <option key={c.id} value={c.id} className="bg-white text-slate-800 font-medium">
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              l.counselor ? (
-                l.counselor.name
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  Unassigned
+          rows={leads.map(l => {
+            const numAdults = parseInt(l.adults || 1);
+            const numKids = parseInt(l.kids || 0);
+            const totalPax = l.total_pax || (numAdults + numKids);
+            const pkgAmt = parseFloat(l.package_amount || 0);
+            const paidAmt = parseFloat(l.paid_amount || 0);
+            const pendAmt = l.pending_amount !== null && l.pending_amount !== undefined ? parseFloat(l.pending_amount) : Math.max(0, pkgAmt - paidAmt);
+
+            return [
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(l.id)}
+                onChange={() => toggleSelect(l.id)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />,
+              l.lead_number,
+              <div>
+                <Link to={`/leads/${l.id}`} className="text-blue-600 font-semibold hover:underline block">{l.client_name}</Link>
+                <span className="text-xs text-gray-500 block">{l.mobile}</span>
+              </div>,
+              <span className="text-xs font-semibold text-slate-700">{l.nationality || l.country || 'N/A'}</span>,
+              <span className="text-xs font-semibold text-slate-700">{l.service_required || 'N/A'}</span>,
+              <div className="text-xs">
+                <span className="font-bold text-slate-800">{totalPax} Pax</span>
+                <span className="text-gray-400 block text-[10px]">{numAdults} Adult(s), {numKids} Kid(s)</span>
+              </div>,
+              <div className="text-xs">
+                <span className="font-bold text-slate-800">AED {pkgAmt.toFixed(2)}</span>
+                <span className={`block text-[10px] font-semibold ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  {pendAmt > 0 ? `Pending: AED ${pendAmt.toFixed(2)}` : 'Fully Paid'}
                 </span>
-              )
-            ),
-            <StatusBadge status={l.status} />,
-            <div className="flex items-center gap-2">
-              <Link to={`/leads/${l.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="View Details">
-                <Eye className="h-4 w-4" />
-              </Link>
-              <Link to={`/leads/edit/${l.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="Edit Profile">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
-              </Link>
-              {(user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') && (
-                <button
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to delete lead ${l.lead_number}?`)) {
-                      axios.delete(`/api/v1/leads/${l.id}`).then(() => fetchLeads()).catch(err => alert(err.response?.data?.message || 'Failed to delete lead'));
-                    }
-                  }}
-                  className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center"
-                  title="Delete Lead"
+              </div>,
+              canManageProfit ? (
+                <select
+                  value={l.counselor_id || ''}
+                  onChange={(e) => handleSingleAssign(l.id, e.target.value)}
+                  className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${!l.counselor_id
+                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
+                    }`}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ])}
+                  <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
+                    Unassigned
+                  </option>
+                  {counselors.map(c => (
+                    <option key={c.id} value={c.id} className="bg-white text-slate-800 font-medium">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                l.counselor ? (
+                  l.counselor.name
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Unassigned
+                  </span>
+                )
+              ),
+              ...(canManageProfit ? [
+                <span className="text-xs font-bold text-emerald-600">
+                  {l.profit !== null && l.profit !== undefined ? `AED ${parseFloat(l.profit).toFixed(2)}` : 'N/A'}
+                </span>
+              ] : []),
+              <StatusBadge status={l.status} />,
+              <div className="flex items-center gap-2">
+                <Link to={`/leads/${l.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="View Details">
+                  <Eye className="h-4 w-4" />
+                </Link>
+                <Link to={`/leads/edit/${l.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="Edit Profile">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </Link>
+                {canManageProfit && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete lead ${l.lead_number}?`)) {
+                        axios.delete(`/api/v1/leads/${l.id}`).then(() => fetchLeads()).catch(err => alert(err.response?.data?.message || 'Failed to delete lead'));
+                      }
+                    }}
+                    className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-red-600 hover:border-red-300 transition-all flex items-center justify-center"
+                    title="Delete Lead"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ];
+          })}
         />
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
@@ -389,6 +425,8 @@ export const LeadDetail = () => {
   const { user } = useContext(AuthContext);
   const [lead, setLead] = useState(null);
   const [interactions, setInteractions] = useState([]);
+
+  // Modals
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteVal, setNoteVal] = useState('');
   const [noteStatus, setNoteStatus] = useState('');
@@ -396,9 +434,23 @@ export const LeadDetail = () => {
   const [followDate, setFollowDate] = useState('');
   const [followNotes, setFollowNotes] = useState('');
 
-  const [visibleHistory, setVisibleHistory] = useState(5);
+  // Conversion Modal State
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convCaseNumber, setConvCaseNumber] = useState('');
+  const [convNationality, setConvNationality] = useState('');
+  const [convService, setConvService] = useState('');
+  const [convAdults, setConvAdults] = useState(1);
+  const [convKids, setConvKids] = useState(0);
+  const [convPkgAmount, setConvPkgAmount] = useState('');
+  const [convPaidAmount, setConvPaidAmount] = useState('');
+  const [convPaymentDate, setConvPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [convNotes, setConvNotes] = useState('');
+  const [convProfit, setConvProfit] = useState('');
 
+  const [visibleHistory, setVisibleHistory] = useState(5);
   const navigate = useNavigate();
+
+  const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
 
   useEffect(() => {
     fetchLeadDetails();
@@ -433,24 +485,43 @@ export const LeadDetail = () => {
     });
   };
 
-  const handleConvert = () => {
-    axios.post(`/api/v1/leads/${id}/convert`).then(() => {
+  const openConvertModal = () => {
+    setConvCaseNumber(`FILE-${1000 + parseInt(id || 1)}`);
+    setConvNationality(lead.nationality || lead.country || '');
+    setConvService(lead.service_required || '');
+    setConvAdults(lead.adults || 1);
+    setConvKids(lead.kids || 0);
+    setConvPkgAmount(lead.package_amount || '');
+    setConvPaidAmount(lead.paid_amount || '');
+    setConvPaymentDate(lead.payment_date || new Date().toISOString().split('T')[0]);
+    setConvNotes(lead.notes || '');
+    setConvProfit(lead.profit || '');
+    setConvertOpen(true);
+  };
+
+  const handleConfirmConvert = () => {
+    const payload = {
+      case_number: convCaseNumber,
+      nationality: convNationality,
+      service_required: convService,
+      adults: parseInt(convAdults || 0),
+      kids: parseInt(convKids || 0),
+      package_amount: convPkgAmount ? parseFloat(convPkgAmount) : null,
+      paid_amount: convPaidAmount ? parseFloat(convPaidAmount) : null,
+      payment_date: convPaymentDate,
+      notes: convNotes
+    };
+
+    if (canManageProfit && convProfit !== '') {
+      payload.profit = parseFloat(convProfit);
+    }
+
+    axios.post(`/api/v1/leads/${id}/convert`, payload).then(() => {
+      setConvertOpen(false);
       navigate('/cases');
     }).catch(err => {
       alert(err.response?.data?.message || 'Conversion failed');
     });
-  };
-
-  const handleDownloadLead = () => {
-    const content = `Lead Profile: ${lead.client_name}\nLead Number: ${lead.lead_number}\nMobile: ${lead.mobile}\nEmail: ${lead.email || 'N/A'}\nCountry: ${lead.country || 'N/A'}\nCity: ${lead.city || 'N/A'}\nService: ${lead.service_required || 'N/A'}\nStatus: ${lead.status}\nRequirement Details: ${lead.requirement_details || 'N/A'}`;
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `lead_${lead.lead_number}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const getInteractionDetails = (type) => {
@@ -472,6 +543,11 @@ export const LeadDetail = () => {
 
   if (!lead) return <div className="text-center py-10">Loading Details...</div>;
 
+  const totalPax = (parseInt(lead.adults || 1)) + (parseInt(lead.kids || 0));
+  const pkgAmt = parseFloat(lead.package_amount || 0);
+  const paidAmt = parseFloat(lead.paid_amount || 0);
+  const pendAmt = lead.pending_amount !== null && lead.pending_amount !== undefined ? parseFloat(lead.pending_amount) : Math.max(0, pkgAmt - paidAmt);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 text-sm font-bold text-slate-600 mb-2">
@@ -482,12 +558,9 @@ export const LeadDetail = () => {
         <span className="text-slate-800">Lead Details</span>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col gap-6">
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col gap-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {/* <div className="h-16 w-16 rounded-xl bg-blue-50 text-blue-600 font-bold text-2xl flex items-center justify-center flex-shrink-0">
-              {lead.client_name.charAt(0).toUpperCase()}
-            </div> */}
             <div>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700">{lead.lead_number}</span>
               <div className="flex items-center gap-3 mt-1">
@@ -502,7 +575,7 @@ export const LeadDetail = () => {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => setFollowOpen(true)}
-              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
             >
               <Calendar className="h-4 w-4 text-blue-100" />
               <span>Schedule Follow-up</span>
@@ -510,8 +583,8 @@ export const LeadDetail = () => {
 
             {lead.status !== 'CONVERTED' ? (
               <button
-                onClick={handleConvert}
-                className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+                onClick={openConvertModal}
+                className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
               >
                 <FolderPlus className="h-4 w-4 text-emerald-100" />
                 <span>Convert To Case</span>
@@ -524,7 +597,7 @@ export const LeadDetail = () => {
 
             <button
               onClick={() => setNoteOpen(true)}
-              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-purple-500/20 hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
             >
               <MessageSquare className="h-4 w-4 text-purple-100" />
               <span>Change status</span>
@@ -532,7 +605,7 @@ export const LeadDetail = () => {
 
             <button
               onClick={() => navigate(`/leads/edit/${lead.id}`)}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-md shadow-slate-900/10 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-slate-900 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
             >
               <User className="h-4 w-4 text-slate-300" />
               <span>Edit Profile</span>
@@ -540,9 +613,9 @@ export const LeadDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-gray-100 w-full">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-blue-50/70 text-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <Phone className="h-5 w-5" />
             </div>
             <div>
@@ -552,7 +625,7 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-blue-50/70 text-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <Mail className="h-5 w-5" />
             </div>
             <div>
@@ -562,12 +635,22 @@ export const LeadDetail = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-blue-50/70 text-blue-600 flex items-center justify-center flex-shrink-0">
-              <MapPin className="h-5 w-5" />
+            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <Globe className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Country / City</p>
-              <p className="text-sm text-slate-800 font-bold mt-0.5">{lead.country || 'N/A'}{lead.city ? `, ${lead.city}` : ''}</p>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Nationality</p>
+              <p className="text-sm text-slate-800 font-bold mt-0.5">{lead.nationality || lead.country || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pax Count</p>
+              <p className="text-sm text-slate-800 font-bold mt-0.5">{totalPax} Total ({lead.adults || 1} A, {lead.kids || 0} K)</p>
             </div>
           </div>
         </div>
@@ -575,48 +658,71 @@ export const LeadDetail = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card title="Lead Details Summary">
+          <Card title="Lead Details & Financial Deal Overview">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
               <div className="flex items-start gap-3">
                 <div className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                   <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Service Requested</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Service Requested / Category</p>
                   <p className="text-slate-800 font-bold mt-1 text-sm">{lead.service_required || 'N/A'}</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <div className="h-9 w-9 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MessageSquare className="h-5 w-5" />
+                  <DollarSign className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Requirement Details</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm max-h-24 overflow-y-auto pr-1">{lead.requirement_details || 'No additional requirements'}</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Package Amount</p>
+                  <p className="text-slate-800 font-bold mt-1 text-sm">AED {pkgAmt.toFixed(2)}</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
                 <div className="h-9 w-9 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User className="h-5 w-5" />
+                  <Check className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Owner Counselor</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm">{lead.counselor ? lead.counselor.name : 'Unassigned'}</p>
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Paid Amount & Payment Date</p>
+                  <p className="text-slate-800 font-bold mt-1 text-sm">
+                    AED {paidAmt.toFixed(2)} {lead.payment_date ? `(Paid on ${lead.payment_date})` : ''}
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="h-9 w-9 bg-orange-50 text-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <div className="h-9 w-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Calendar className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Assigned On</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm">
-                    {lead.assigned_date ? new Date(lead.assigned_date).toLocaleDateString() : 'N/A'}
+                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pending Balance</p>
+                  <p className={`font-bold mt-1 text-sm ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    AED {pendAmt.toFixed(2)}
                   </p>
                 </div>
+              </div>
+
+              {canManageProfit && (
+                <div className="flex items-start gap-3 md:col-span-2 bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                  <div className="h-9 w-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center flex-shrink-0">
+                    <DollarSign className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Profit Margin (Admin & Manager Only)</p>
+                    <p className="text-emerald-950 font-extrabold mt-0.5 text-base">
+                      {lead.profit !== null && lead.profit !== undefined ? `AED ${parseFloat(lead.profit).toFixed(2)}` : 'Not set'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="md:col-span-2">
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Notes & Special Instructions</p>
+                <p className="text-slate-800 font-medium mt-1 text-sm bg-slate-50 p-3 rounded-lg border border-gray-100">
+                  {lead.notes || lead.requirement_details || 'No additional notes logged.'}
+                </p>
               </div>
             </div>
           </Card>
@@ -629,7 +735,7 @@ export const LeadDetail = () => {
               </div>
             ) : (
               <div className="relative pl-6 border-l border-slate-100 space-y-6 mt-2 ml-3">
-                {interactions.slice(0, visibleHistory).map((item, idx) => {
+                {interactions.slice(0, visibleHistory).map((item) => {
                   const details = getInteractionDetails(item.interaction_type);
                   const dateObj = new Date(item.interaction_date || item.createdAt);
                   const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -651,120 +757,152 @@ export const LeadDetail = () => {
                         <p className="text-[10px] text-slate-700 font-semibold">{dStr}</p>
                         <p className="text-[9px] text-gray-400 font-semibold mt-0.5">{tStr}</p>
                       </div>
-                      <div className="text-right text-[10px] text-gray-400 font-semibold flex-shrink-0 w-24 truncate" title={item.User?.name || 'System'}>
-                        {item.User?.name || 'System'}
-                      </div>
                     </div>
                   );
                 })}
-
-                {interactions.length > visibleHistory && (
-                  <div className="text-center pt-2">
-                    <button
-                      onClick={() => setVisibleHistory(prev => prev + 5)}
-                      className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      View Full Activity &darr;
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card title="Process Status">
-            <div className="relative pl-6 border-l border-slate-100 space-y-6 mt-2 ml-3">
-              <div className="relative flex items-start gap-4">
-                <div className="absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white bg-emerald-50 text-emerald-600">
-                  <Check className="h-3 w-3" />
-                </div>
-                <div>
-                  <p className="font-bold text-slate-800 text-xs">New Lead</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Lead created successfully</p>
-                </div>
-                <span className="text-[9px] text-gray-400 font-semibold ml-auto">
-                  {new Date(lead.created_at || lead.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div className="relative flex items-start gap-4">
-                <div className={`absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white ${lead.status === 'CONVERTED' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'
-                  }`}>
-                  {lead.status === 'CONVERTED' ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>}
-                </div>
-                <div>
-                  <p className="font-bold text-slate-800 text-xs">Converted</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {lead.status === 'CONVERTED' ? 'Lead converted to Case' : 'Conversion pending'}
-                  </p>
-                </div>
-                {lead.status === 'CONVERTED' && (
-                  <span className="text-[9px] text-gray-400 font-semibold ml-auto">
-                    {new Date(lead.updated_at || lead.updatedAt).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-
-              <div className="relative flex items-start gap-4">
-                <div className={`absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white ${lead.follow_up_date ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'
-                  }`}>
-                  {lead.follow_up_date ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-slate-400"></span>}
-                </div>
-                <div>
-                  <p className="font-bold text-slate-800 text-xs">Follow-up</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {lead.follow_up_date ? 'Next task scheduled' : 'No follow-up scheduled'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-emerald-50 rounded-xl flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Next Follow-up</p>
-                <p className="text-xs font-extrabold text-emerald-950 mt-0.5">
-                  {lead.follow_up_date ? new Date(lead.follow_up_date).toLocaleDateString() : 'None Scheduled'}
-                </p>
-              </div>
-              <button
-                onClick={() => setFollowOpen(true)}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
-              >
-                Schedule Now
-              </button>
-            </div>
-          </Card>
-
-          <Card title="Additional Information">
+          <Card title="Counselor & Status Info">
             <div className="space-y-3.5 text-xs">
               <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-400 font-medium">Lead ID</span>
-                <span className="font-bold text-slate-700 font-mono">{lead.lead_number}</span>
+                <span className="text-gray-400 font-medium">Owner Counselor</span>
+                <span className="font-bold text-slate-800">{lead.counselor?.name || 'Unassigned'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-50 pb-2">
                 <span className="text-gray-400 font-medium">Status</span>
                 <StatusBadge status={lead.status} />
               </div>
               <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-400 font-medium">Created By</span>
-                <span className="font-bold text-slate-700">{lead.counselor?.name || 'Super Admin User'}</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
                 <span className="text-gray-400 font-medium">Created On</span>
                 <span className="font-bold text-slate-700">{new Date(lead.created_at || lead.createdAt).toLocaleDateString()}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 font-medium">Last Updated</span>
-                <span className="font-bold text-slate-700">{new Date(lead.updated_at || lead.updatedAt).toLocaleDateString()}</span>
-              </div>
             </div>
           </Card>
-
-
         </div>
       </div>
+
+      {/* CONVERT TO CASE MODAL */}
+      <Modal isOpen={convertOpen} onClose={() => setConvertOpen(false)} title="Convert Lead to Active Case">
+        <div className="space-y-4">
+          <p className="text-xs text-gray-500">
+            Assign unique File ID, package amount, payment details, pax count, and notes for this case file.
+          </p>
+
+          <Input label="Unique File ID / Case Number *" id="conv_case_number" value={convCaseNumber} onChange={(e) => setConvCaseNumber(e.target.value)} placeholder="e.g. FILE-1005 or CASE-1005" />
+          <Input label="Nationality" id="conv_nationality" value={convNationality} onChange={(e) => setConvNationality(e.target.value)} />
+          <Input label="Required Service / Category" id="conv_service" value={convService} onChange={(e) => setConvService(e.target.value)} />
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Adults</label>
+              <input
+                type="number"
+                min="0"
+                value={convAdults}
+                onChange={(e) => setConvAdults(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Kids</label>
+              <input
+                type="number"
+                min="0"
+                value={convKids}
+                onChange={(e) => setConvKids(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Total Pax</label>
+              <input
+                type="number"
+                readOnly
+                value={(parseInt(convAdults || 0) + parseInt(convKids || 0))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Total Package Amount (AED)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={convPkgAmount}
+                onChange={(e) => setConvPkgAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Paid Amount (AED)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={convPaidAmount}
+                onChange={(e) => setConvPaidAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date</label>
+              <input
+                type="date"
+                value={convPaymentDate}
+                onChange={(e) => setConvPaymentDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Pending Amount (AED)</label>
+              <input
+                type="number"
+                readOnly
+                value={Math.max(0, parseFloat(convPkgAmount || 0) - parseFloat(convPaidAmount || 0))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold text-amber-700"
+              />
+            </div>
+          </div>
+
+          {canManageProfit && (
+            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+              <label className="block text-xs font-bold text-emerald-800 mb-1">Profit Amount (AED) - Admin/Manager Only</label>
+              <input
+                type="number"
+                step="0.01"
+                value={convProfit}
+                onChange={(e) => setConvProfit(e.target.value)}
+                placeholder="Enter net profit amount..."
+                className="w-full px-3 py-2 border border-emerald-300 rounded-lg text-sm bg-white font-bold text-emerald-950"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Notes / Instructions</label>
+            <textarea
+              value={convNotes}
+              onChange={(e) => setConvNotes(e.target.value)}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              placeholder="Add conversion notes..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+            <Button variant="secondary" onClick={() => setConvertOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmConvert}>Confirm & Convert to Case</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={noteOpen} onClose={() => setNoteOpen(false)} title="Log Contact Interaction">
         <div className="space-y-4">
@@ -817,20 +955,51 @@ export const LeadDetail = () => {
 
 export const LeadForm = () => {
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState(null);
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
+    defaultValues: {
+      adults: 1,
+      kids: 0,
+      total_pax: 1
+    }
+  });
+
+  const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
+
+  const adultsVal = watch('adults');
+  const kidsVal = watch('kids');
+  const pkgVal = watch('package_amount');
+  const paidVal = watch('paid_amount');
+
+  useEffect(() => {
+    const tot = parseInt(adultsVal || 0) + parseInt(kidsVal || 0);
+    setValue('total_pax', tot);
+  }, [adultsVal, kidsVal, setValue]);
+
+  useEffect(() => {
+    const pend = Math.max(0, parseFloat(pkgVal || 0) - parseFloat(paidVal || 0));
+    setValue('pending_amount', pend);
+  }, [pkgVal, paidVal, setValue]);
 
   useEffect(() => {
     if (id) {
       axios.get(`/api/v1/leads/${id}`).then(res => {
-        reset(res.data.data);
+        const d = res.data.data;
+        if (d.country && !d.nationality) d.nationality = d.country;
+        reset(d);
       });
     }
-  }, [id]);
+  }, [id, reset]);
 
   const onSubmit = (data) => {
     setErrorMsg(null);
+    if (!canManageProfit) {
+      delete data.profit;
+    }
+
     const action = id ? axios.put(`/api/v1/leads/${id}`, data) : axios.post('/api/v1/leads', data);
     action.then(() => {
       navigate('/leads');
@@ -841,7 +1010,7 @@ export const LeadForm = () => {
   };
 
   return (
-    <div className=" mx-auto">
+    <div className="mx-auto">
       <Card title={id ? 'Edit Lead Profile' : 'Create New Lead Profile'}>
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {errorMsg && (
@@ -850,17 +1019,100 @@ export const LeadForm = () => {
               <button type="button" onClick={() => setErrorMsg(null)} className="text-red-600 hover:text-red-900 font-extrabold ml-2">✕</button>
             </div>
           )}
-          <Input label="Client Name" id="client_name" register={register} errors={errors} required />
-          <Input label="Mobile Number" id="mobile" register={register} errors={errors} required />
+          <Input label="Client Name *" id="client_name" register={register} errors={errors} required />
+          <Input label="Mobile Number *" id="mobile" register={register} errors={errors} required />
           <Input label="Email Address" id="email" type="email" register={register} errors={errors} />
-          <Input label="Country" id="country" register={register} errors={errors} />
-          <Input label="City" id="city" register={register} errors={errors} />
-          <Input label="Required Service / Category" id="service_required" register={register} errors={errors} />
-          <Input label="Lead Source" id="lead_source" register={register} errors={errors} />
-          <Input label="Estimated Budget" id="estimated_budget" type="number" register={register} errors={errors} />
-          <div className="md:col-span-2">
-            <Input label="Requirement details" id="requirement_details" register={register} errors={errors} />
+          <Input label="Nationality" id="nationality" register={register} errors={errors} placeholder="e.g. UAE / Indian / British" />
+          <Input label="Required Service / Category" id="service_required" register={register} errors={errors} placeholder="e.g. Business Visa / Golden Visa" />
+          <Input label="Lead Source" id="lead_source" register={register} errors={errors} placeholder="e.g. Website / Referral" />
+
+          <div className="grid grid-cols-3 gap-3 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-gray-200">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Adults Count</label>
+              <input
+                type="number"
+                min="0"
+                {...register('adults')}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Kids Count</label>
+              <input
+                type="number"
+                min="0"
+                {...register('kids')}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Total Pax</label>
+              <input
+                type="number"
+                readOnly
+                {...register('total_pax')}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold"
+              />
+            </div>
           </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-gray-200">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Total Package Amount (AED)</label>
+              <input
+                type="number"
+                step="0.01"
+                {...register('package_amount')}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Paid Amount (AED)</label>
+              <input
+                type="number"
+                step="0.01"
+                {...register('paid_amount')}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date</label>
+              <input
+                type="date"
+                {...register('payment_date')}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Pending Amount (AED)</label>
+              <input
+                type="number"
+                readOnly
+                {...register('pending_amount')}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold text-amber-700"
+              />
+            </div>
+          </div>
+
+          {canManageProfit && (
+            <div className="md:col-span-2 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+              <label className="block text-xs font-bold text-emerald-800 mb-1">Profit Amount (AED) - Admin & Lead Manager Only</label>
+              <input
+                type="number"
+                step="0.01"
+                {...register('profit')}
+                placeholder="Enter net profit..."
+                className="w-full px-3 py-2 border border-emerald-300 rounded-lg text-sm bg-white font-bold text-emerald-950"
+              />
+            </div>
+          )}
+
+          <div className="md:col-span-2">
+            <Input label="Notes & Special Requirements" id="notes" register={register} errors={errors} placeholder="Add notes or custom requirements..." />
+          </div>
+
           <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
             <Button variant="secondary" onClick={() => navigate('/leads')}>Cancel</Button>
             <Button type="submit">Save Profile</Button>
@@ -912,7 +1164,7 @@ export const LeadImportWizard = () => {
   };
 
   return (
-    <div className=" mx-auto space-y-6">
+    <div className="mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Import Leads Wizard</h1>
 
       {step === 1 && (

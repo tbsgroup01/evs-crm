@@ -5,28 +5,81 @@ const { createNotification } = require('../services/notificationService');
 
 const getPayments = async (req, res) => {
   try {
-    const where = {};
-    const caseInclude = {
-      model: Case,
-      attributes: ['id', 'case_number', 'case_manager_id'],
-      include: [{ model: Lead, attributes: ['id', 'client_name'] }]
+    const roleName = req.user.role?.name || req.user.role;
+    const caseWhere = {};
+
+    const leadInclude = {
+      model: Lead,
+      attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'payment_date', 'notes', 'counselor_id'],
+      include: [{ model: User, as: 'counselor', attributes: ['id', 'name'] }]
     };
 
-    if (req.user.role.name === 'CASE_MANAGER') {
-      caseInclude.where = { case_manager_id: req.user.id };
+    if (roleName === 'CASE_MANAGER') {
+      caseWhere.case_manager_id = req.user.id;
+    } else if (roleName === 'COUNSELOR') {
+      leadInclude.where = { counselor_id: req.user.id };
+      leadInclude.required = true;
     }
 
-    const list = await Payment.findAll({
-      where,
+    const cases = await Case.findAll({
+      where: caseWhere,
       include: [
-        caseInclude,
-        { model: User, as: 'creator', attributes: ['id', 'name'] }
+        leadInclude,
+        { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] },
+        { model: CasePackage, as: 'casePackages', attributes: ['id', 'package_amount'] },
+        {
+          model: Payment,
+          as: 'payments',
+          include: [{ model: User, as: 'creator', attributes: ['id', 'name'] }]
+        }
       ],
-      order: [['payment_date', 'DESC']]
+      order: [['id', 'DESC']]
     });
 
-    return res.status(200).json({ success: true, data: list });
+    const caseRecords = cases.map(c => {
+      const caseData = c.toJSON();
+      const casePayments = caseData.payments || [];
+      const sumPayments = casePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+      const pkgAmt = parseFloat(caseData.casePackages?.[0]?.package_amount || caseData.Lead?.package_amount || 0);
+      const effectivePaid = Math.max(sumPayments, parseFloat(caseData.Lead?.paid_amount || 0));
+      const pendingAmt = Math.max(0, pkgAmt - effectivePaid);
+
+      const latestPayment = casePayments.length > 0 ? casePayments[0] : null;
+      const latestDate = latestPayment?.payment_date || caseData.Lead?.payment_date || caseData.opened_at || caseData.createdAt;
+
+      return {
+        id: caseData.id,
+        amount: effectivePaid,
+        package_amount: pkgAmt,
+        pending_amount: pendingAmt,
+        payment_date: latestDate,
+        payment_method: latestPayment?.payment_method || (effectivePaid > 0 ? 'CASH/ONLINE' : 'DEAL_PACKAGE'),
+        transaction_id: latestPayment?.transaction_id || caseData.case_number,
+        notes: latestPayment?.notes || caseData.Lead?.notes || 'Case deal registered',
+        receipt_path: latestPayment?.receipt_path || null,
+        created_by: latestPayment?.created_by || caseData.Lead?.counselor_id || req.user.id,
+        creator: latestPayment?.creator || (caseData.Lead?.counselor ? { id: caseData.Lead.counselor.id, name: caseData.Lead.counselor.name } : (caseData.caseManager ? { id: caseData.caseManager.id, name: caseData.caseManager.name } : null)),
+        paymentCount: casePayments.length,
+        Case: {
+          id: caseData.id,
+          case_number: caseData.case_number,
+          case_manager_id: caseData.case_manager_id,
+          status: caseData.status,
+          lead_id: caseData.lead_id,
+          Lead: {
+            ...caseData.Lead,
+            package_amount: pkgAmt,
+            paid_amount: effectivePaid,
+            pending_amount: pendingAmt
+          },
+          casePackages: caseData.casePackages
+        }
+      };
+    });
+
+    return res.status(200).json({ success: true, data: caseRecords });
   } catch (error) {
+    console.error('Error in getPayments:', error);
     return res.status(500).json({ success: false, message: 'Failed to retrieve payments', errors: [error.message] });
   }
 };
@@ -43,6 +96,7 @@ const getCasePayments = async (req, res) => {
 
     const list = await Payment.findAll({
       where: { case_id: id },
+      include: [{ model: User, as: 'creator', attributes: ['id', 'name'] }],
       order: [['payment_date', 'DESC']]
     });
 
@@ -55,7 +109,7 @@ const getCasePayments = async (req, res) => {
 const getCasePaymentSummary = async (req, res) => {
   try {
     const { id } = req.params;
-    const singleCase = await Case.findByPk(id);
+    const singleCase = await Case.findByPk(id, { include: [Lead] });
     if (!singleCase) return res.status(404).json({ success: false, message: 'Case not found' });
 
     if (req.user.role.name === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
@@ -67,9 +121,9 @@ const getCasePaymentSummary = async (req, res) => {
       order: [['assigned_at', 'DESC']]
     });
 
-    const packageAmount = cp ? parseFloat(cp.package_amount) : 0;
-    const totalPaid = await Payment.sum('amount', { where: { case_id: id } }) || 0;
-    const balance = packageAmount - totalPaid;
+    const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
+    const totalPaid = await Payment.sum('amount', { where: { case_id: id } }) || (singleCase.Lead?.paid_amount ? parseFloat(singleCase.Lead.paid_amount) : 0);
+    const balance = Math.max(0, packageAmount - totalPaid);
 
     let paymentStatus = 'PENDING';
     if (totalPaid >= packageAmount && packageAmount > 0) {
@@ -134,9 +188,16 @@ const addPayment = async (req, res) => {
       transaction
     });
 
-    const packageAmount = cp ? parseFloat(cp.package_amount) : 0;
+    const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
     const totalPaid = await Payment.sum('amount', { where: { case_id: singleCase.id }, transaction }) || 0;
-    const balance = packageAmount - totalPaid;
+    const balance = Math.max(0, packageAmount - totalPaid);
+
+    if (singleCase.Lead) {
+      await singleCase.Lead.update({
+        paid_amount: totalPaid,
+        pending_amount: balance
+      }, { transaction });
+    }
 
     let paymentStatus = 'PENDING';
     if (totalPaid >= packageAmount && packageAmount > 0) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader } from 'lucide-react';
 
-export const DataTable = ({ headers = [], rows = [], loading, emptyMessage = 'No records found.' }) => {
+export const DataTable = ({ headers = [], rows = [], loading, emptyMessage = 'No records found.', onRowClick }) => {
   if (loading) {
     return (
       <div className="w-full py-10 flex justify-center items-center">
@@ -30,7 +30,14 @@ export const DataTable = ({ headers = [], rows = [], loading, emptyMessage = 'No
         </thead>
         <tbody className="divide-y divide-gray-200 text-gray-900">
           {rows.map((row, i) => (
-            <tr key={i} className="hover:bg-gray-50 transition-colors">
+            <tr
+              key={i}
+              onClick={(e) => {
+                if (e.target.tagName === 'INPUT' || e.target.closest('button') || e.target.closest('a')) return;
+                if (onRowClick) onRowClick(row, i);
+              }}
+              className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-slate-50' : 'hover:bg-gray-50'}`}
+            >
               {row.map((cell, j) => (
                 <td key={j} className="px-6 py-4 whitespace-nowrap">{cell}</td>
               ))}

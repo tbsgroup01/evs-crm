@@ -22,7 +22,7 @@ export const DashboardLayout = ({ children }) => {
     if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
     return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
@@ -51,7 +51,7 @@ export const DashboardLayout = ({ children }) => {
             }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [user]);
 
@@ -83,7 +83,7 @@ export const DashboardLayout = ({ children }) => {
         logoIcon={logoIcon}
         appName={appName}
       />
-      
+
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
         <Navbar
           user={user}
@@ -100,7 +100,7 @@ export const DashboardLayout = ({ children }) => {
           setNotifications={setNotifications}
           setMobileOpen={setMobileOpen}
         />
-        
+
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
           {children}
         </main>

@@ -35,6 +35,18 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    mobile_1: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    mobile_2: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    extension: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     password_hash: {
       type: DataTypes.STRING,
       allowNull: false

@@ -19,7 +19,7 @@ import { SettingsPanel } from './pages/SettingsPanel';
 import { NotificationsList } from './pages/NotificationsList';
 import { DashboardLayout } from './components/DashboardLayout';
 
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
 axios.defaults.withCredentials = true;
 
 const initialToken = localStorage.getItem('token');
@@ -58,7 +58,7 @@ const AppContent = () => {
     );
   }
   return (
-    <Routes>
+    <Routes base="/">
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
@@ -72,12 +72,12 @@ const AppContent = () => {
       <Route path="/leads/edit/:id" element={<ProtectedRoute><LeadForm /></ProtectedRoute>} />
       <Route path="/leads/:id" element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
       <Route path="/leads/import" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER']}><LeadImportWizard /></ProtectedRoute>} />
-      <Route path="/cases" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER']}><CaseList /></ProtectedRoute>} />
-      <Route path="/cases/:id" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER']}><CaseDetail /></ProtectedRoute>} />
-      <Route path="/documents" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER']}><DocumentList /></ProtectedRoute>} />
+      <Route path="/cases" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><CaseList /></ProtectedRoute>} />
+      <Route path="/cases/:id" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><CaseDetail /></ProtectedRoute>} />
+      <Route path="/documents" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><DocumentList /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute roles={['ADMIN']}><SettingsPanel /></ProtectedRoute>} />
       <Route path="/document-categories" element={<ProtectedRoute roles={['ADMIN']}><DocumentCategoriesList /></ProtectedRoute>} />
-      <Route path="/payments" element={<ProtectedRoute roles={['ADMIN']}><PaymentsList /></ProtectedRoute>} />
+      <Route path="/payments" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><PaymentsList /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER']}><ReportsPanel /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute roles={['ADMIN']}><UsersList /></ProtectedRoute>} />
       <Route path="/activity" element={<ProtectedRoute roles={['ADMIN']}><ActivityLogsList /></ProtectedRoute>} />

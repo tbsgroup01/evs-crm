@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Clipboard, DollarSign, FileText, Search, ArrowLeft, Check, Activity, User, Folder, CreditCard, Trash2 } from 'lucide-react';
+import { Plus, Download, Upload, Filter, Calendar, MessageSquare, Clipboard, DollarSign, FileText, Search, ArrowLeft, Check, Activity, User, Folder, CreditCard, Trash2, Phone, UserCheck, Shield, Clock } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
@@ -167,7 +167,7 @@ export const CaseList = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm ">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3.5 top-3 h-4 w-4 text-gray-400" />
@@ -210,7 +210,7 @@ export const CaseList = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl p-5 shadow-sm ">
+      <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
         <DataTable
           headers={[
             <input
@@ -247,11 +247,10 @@ export const CaseList = () => {
               <select
                 value={c.case_manager_id || c.caseManager?.id || ''}
                 onChange={(e) => handleSingleAssign(c.id, e.target.value)}
-                className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${
-                  !(c.case_manager_id || c.caseManager?.id)
+                className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${!(c.case_manager_id || c.caseManager?.id)
                     ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
                     : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
-                }`}
+                  }`}
               >
                 <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
                   Unassigned
@@ -274,7 +273,7 @@ export const CaseList = () => {
             <StatusBadge status={c.status} />,
             formatDate(c.created_at || c.createdAt),
             <div className="flex items-center gap-2">
-              <Link to={`/cases/${c.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all" title="View Case Details">
+              <Link to={`/cases/${c.id}`} className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-500 hover:text-blue-600 hover:border-blue-300 transition-all flex items-center justify-center" title="View Case Details">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
@@ -343,8 +342,9 @@ export const CaseList = () => {
 
 export const CaseDetail = () => {
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const [caseObj, setCaseObj] = useState(null);
-  const [notes, setNotes] = useState([]);
+  const [interactions, setInteractions] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [docTypes, setDocTypes] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -352,8 +352,11 @@ export const CaseDetail = () => {
   const [summary, setSummary] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteVal, setNoteVal] = useState('');
+  // Interaction Modal State
+  const [intOpen, setIntOpen] = useState(false);
+  const [intType, setIntType] = useState('CALL');
+  const [intNotes, setIntNotes] = useState('');
+  const [intStatus, setIntStatus] = useState('');
 
   const [docOpen, setDocOpen] = useState(false);
   const [docFile, setDocFile] = useState(null);
@@ -380,19 +383,28 @@ export const CaseDetail = () => {
   const fetchCaseDetails = () => {
     axios.get(`/api/v1/cases/${id}`).then(res => {
       setCaseObj(res.data.data.case);
-      setNotes(res.data.data.notes || []);
       setStatusVal(res.data.data.case.status);
+    });
+    axios.get(`/api/v1/cases/${id}/interactions`).then(res => {
+      setInteractions(res.data.data || []);
     });
     axios.get(`/api/v1/documents?case_id=${id}`).then(res => setDocuments(res.data.data || []));
     axios.get(`/api/v1/cases/${id}/payments`).then(res => setPayments(res.data.data || []));
     axios.get(`/api/v1/cases/${id}/payment-summary`).then(res => setSummary(res.data.data || null));
   };
 
-  const handleAddNote = () => {
-    axios.post(`/api/v1/cases/${id}/notes`, { note: noteVal }).then(() => {
-      setNoteVal('');
-      setNoteOpen(false);
+  const handleAddInteraction = () => {
+    if (!intNotes) return;
+    axios.post(`/api/v1/cases/${id}/interactions`, {
+      interaction_type: intType,
+      notes: intNotes,
+      new_status: intStatus || statusVal
+    }).then(() => {
+      setIntNotes('');
+      setIntOpen(false);
       fetchCaseDetails();
+    }).catch(err => {
+      alert(err.response?.data?.message || 'Failed to log interaction');
     });
   };
 
@@ -456,7 +468,29 @@ export const CaseDetail = () => {
     });
   };
 
-  if (!caseObj) return <div className="text-center py-10">Loading Details...</div>;
+  if (!caseObj) return <div className="text-center py-10">Loading Case Details...</div>;
+
+  const getTeamBadge = (item) => {
+    if (item.source === 'SALES_TEAM' || item.author_role === 'COUNSELOR') {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+          💼 Sales Team ({item.author})
+        </span>
+      );
+    }
+    if (item.author_role === 'ADMIN') {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-200">
+          👑 Management ({item.author})
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+        🛡️ Case Team ({item.author})
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -468,7 +502,7 @@ export const CaseDetail = () => {
         <span className="text-slate-800">Case Details</span>
       </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-white rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 border border-gray-100">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-xl bg-blue-50 text-blue-600 font-bold text-2xl flex items-center justify-center flex-shrink-0">
             {caseObj.Lead?.client_name?.charAt(0).toUpperCase() || 'C'}
@@ -479,8 +513,9 @@ export const CaseDetail = () => {
               <h1 className="text-2xl font-extrabold text-gray-900 leading-none">{caseObj.Lead?.client_name}</h1>
               <StatusBadge status={caseObj.status} />
             </div>
-            <p className="text-xs text-gray-500 mt-1.5 font-semibold">
-              Case Manager: <span className="text-slate-850">{caseObj.caseManager ? caseObj.caseManager.name : 'Unassigned'}</span>
+            <p className="text-xs text-gray-500 mt-1.5 font-semibold flex items-center gap-4">
+              <span>Case Manager: <strong className="text-slate-800">{caseObj.caseManager ? caseObj.caseManager.name : 'Unassigned'}</strong></span>
+              <span>Client Phone: <strong className="text-slate-800">{caseObj.Lead?.mobile || 'N/A'}</strong></span>
             </p>
           </div>
         </div>
@@ -497,30 +532,30 @@ export const CaseDetail = () => {
             value={statusVal}
             onChange={(e) => handleStatusChange(e.target.value)}
           />
-          <Button variant="secondary" onClick={() => setNoteOpen(true)} className="flex items-center">
-            <MessageSquare className="mr-2 h-4 w-4" /> Add Note
+          <Button onClick={() => setIntOpen(true)} className="flex items-center gap-2">
+            <Phone className="h-4 w-4" /> Log Call / Activity
           </Button>
         </div>
       </div>
 
       <div className="flex border-b border-gray-150/60 mt-4">
-        {['overview', 'documents', 'payments', 'notes'].map(tab => (
+        {['overview', 'activity_history', 'documents', 'payments'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-5 py-3 text-sm font-semibold capitalize border-b-2 transition-all -mb-px ${activeTab === tab ? 'border-blue-600 text-blue-600 font-bold' : 'border-transparent text-gray-500 hover:text-slate-850'
               }`}
           >
-            {tab}
+            {tab === 'activity_history' ? 'Activity & Interactions History' : tab}
           </button>
         ))}
       </div>
 
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card title="Case Overview">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <Card title="Case Overview" className="h-full flex flex-col">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm flex-1">
                 <div className="flex items-start gap-3">
                   <div className="h-9 w-9 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Clipboard className="h-5 w-5" />
@@ -565,31 +600,8 @@ export const CaseDetail = () => {
               </div>
             </Card>
 
-            <Card title="Notes Log">
-              {notes.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  <MessageSquare className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  No logged notes found.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {notes.map(n => (
-                    <div key={n.id} className="p-4 bg-slate-50/50 rounded-xl space-y-2 border border-slate-100">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 text-xs">{n.author}</span>
-                        <span className="text-[10px] text-gray-400 font-semibold">{new Date(n.created_at || n.createdAt).toLocaleString()}</span>
-                      </div>
-                      <p className="text-xs text-slate-650 leading-relaxed">{n.note}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-
-          <div className="space-y-6">
-            <Card title="Financial Summary">
-              <div className="space-y-4 text-xs font-semibold">
+            <Card title="Financial Summary" className="h-full flex flex-col">
+              <div className="space-y-4 text-xs font-semibold flex-1 flex flex-col justify-around">
                 <div className="flex justify-between border-b border-gray-50 pb-2.5">
                   <span className="text-gray-400">Package Amount</span>
                   <span className="font-bold text-slate-850">AED {summary?.packageAmount?.toFixed(2) || '0.00'}</span>
@@ -608,15 +620,121 @@ export const CaseDetail = () => {
                     {summary?.paymentStatus || 'PENDING'}
                   </span>
                 </div>
-                <div className="pt-2">
-                  <Button variant="secondary" className="w-full flex items-center justify-center gap-1.5" onClick={() => setPkgOpen(true)}>
-                    <CreditCard className="h-4 w-4" /> Assign Service Package
-                  </Button>
-                </div>
               </div>
             </Card>
           </div>
+
+          {/* COMBINED SALES & CASE TEAM INTERACTION HISTORY FULL WIDTH */}
+          <Card title="Activity & Interactions Log (Sales Person & Case Team)" className="w-full">
+            {interactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                No logged calls or updates found yet.
+              </div>
+            ) : (
+              <div className="relative pl-6 border-l border-slate-200 space-y-6 mt-2 ml-3">
+                {interactions.slice(0, 5).map((item) => {
+                  const dateObj = new Date(item.created_at);
+                  const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                  return (
+                    <div key={item.id} className="relative flex items-start justify-between gap-4">
+                      <div className="absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white bg-blue-50 text-blue-600">
+                        <Activity className="h-3 w-3" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getTeamBadge(item)}
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-700 uppercase">
+                            {item.interaction_type}
+                          </span>
+                          {item.new_status && (
+                            <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                              Status: {item.new_status}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-700 font-medium mt-1.5 leading-relaxed bg-slate-50/70 p-3 rounded-lg border border-slate-100">
+                          {item.notes}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[10px] text-slate-700 font-semibold">{dStr}</p>
+                        <p className="text-[9px] text-gray-400 font-semibold mt-0.5">{tStr}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {interactions.length > 5 && (
+                  <button
+                    onClick={() => setActiveTab('activity_history')}
+                    className="text-xs font-bold text-blue-600 hover:underline pt-2 block"
+                  >
+                    View All {interactions.length} Interactions & Call Updates →
+                  </button>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
+      )}
+
+      {activeTab === 'activity_history' && (
+        <Card title="Complete Activity & Call Interaction Log (Sales & Case Teams)">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Combined Interactions Timeline</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Logs of calls, meetings, and updates registered by sales persons (counselors) and case managers.</p>
+            </div>
+            <Button onClick={() => setIntOpen(true)} className="flex items-center gap-2">
+              <Phone className="h-4 w-4" /> Log Call / Activity
+            </Button>
+          </div>
+
+          {interactions.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 text-sm">
+              <Activity className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+              No call logs or team activity updates recorded yet.
+            </div>
+          ) : (
+            <div className="relative pl-8 border-l-2 border-slate-200 space-y-6 ml-2">
+              {interactions.map(item => {
+                const dateObj = new Date(item.created_at);
+                const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                return (
+                  <div key={item.id} className="relative flex items-start justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="absolute -left-11 top-4 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white bg-blue-600 text-white shadow-sm">
+                      <Activity className="h-3 w-3" />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getTeamBadge(item)}
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                          {item.interaction_type}
+                        </span>
+                        {item.new_status && (
+                          <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                            Transitioned to: {item.new_status}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-800 font-medium leading-relaxed bg-slate-50/80 p-3 rounded-lg border border-slate-100">
+                        {item.notes}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0 pl-2">
+                      <p className="text-xs text-slate-800 font-bold">{dStr}</p>
+                      <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{tStr}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       )}
 
       {activeTab === 'documents' && (
@@ -629,7 +747,7 @@ export const CaseDetail = () => {
             headers={['Document Type', 'File Name', 'Status', 'Actions']}
             rows={documents.map(d => [
               <span className="font-bold text-slate-700">{d.DocumentType?.name}</span>,
-              <a href={`http://localhost:5505/api/v1/documents/${d.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
+              <a href={`/api/v1/documents/${d.id}/download`} target="_blank" rel="noreferrer" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
               <StatusBadge status={d.status} />,
               <div className="flex items-center gap-3">
                 {d.status === 'UPLOADED' && (
@@ -661,7 +779,7 @@ export const CaseDetail = () => {
               <span className="font-mono text-xs">{p.transaction_id || 'N/A'}</span>,
               <span className="text-xs text-gray-500 block max-w-xs truncate" title={p.notes}>{p.notes || 'N/A'}</span>,
               p.receipt_path ? (
-                <a href={`http://localhost:5505/api/v1/payments/${p.id}/download`} target="_blank" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
+                <a href={`/api/v1/payments/${p.id}/download`} target="_blank" rel="noreferrer" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
               ) : <span className="text-xs text-gray-400">No Proof</span>,
               <span className="text-xs font-semibold text-slate-700">{new Date(p.payment_date).toLocaleDateString()}</span>
             ])}
@@ -669,53 +787,49 @@ export const CaseDetail = () => {
         </Card>
       )}
 
-      {activeTab === 'notes' && (
-        <Card title="Case Timeline & History">
-          {notes.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">
-              <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              No logs registered.
-            </div>
-          ) : (
-            <div className="relative pl-6 border-l border-slate-100 space-y-6 mt-2 ml-3">
-              {notes.map(n => {
-                const dateObj = new Date(n.created_at || n.createdAt);
-                const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                return (
-                  <div key={n.id} className="relative flex items-start justify-between gap-4">
-                    <div className="absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white bg-blue-50 text-blue-600">
-                      <Activity className="h-3 w-3" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-800 text-xs">{n.author}</p>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{n.note}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-[10px] text-slate-700 font-semibold">{dStr}</p>
-                      <p className="text-[9px] text-gray-400 font-semibold mt-0.5">{tStr}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      )}
-
-      <Modal isOpen={noteOpen} onClose={() => setNoteOpen(false)} title="Add Case File Note">
+      {/* LOG CALL / INTERACTION MODAL */}
+      <Modal isOpen={intOpen} onClose={() => setIntOpen(false)} title="Log Call / Interaction Update">
         <div className="space-y-4">
-          <Input
-            label="Note text"
-            id="note"
-            value={noteVal}
-            onChange={(e) => setNoteVal(e.target.value)}
-            placeholder="E.g., document verified successfully..."
+          <Select
+            label="Interaction Type"
+            id="int_type"
+            options={[
+              { value: 'CALL', label: '📞 Phone Call Log' },
+              { value: 'MEETING', label: '🤝 Client Meeting' },
+              { value: 'UPDATE', label: '📝 Case Status / Process Update' },
+              { value: 'NOTE', label: '📌 Internal Note' }
+            ]}
+            value={intType}
+            onChange={(e) => setIntType(e.target.value)}
           />
-          <Button onClick={handleAddNote} className="w-full">Save Case Note</Button>
+
+          <Select
+            label="Update Case Status (Optional)"
+            id="int_status"
+            options={[
+              { value: '', label: 'Keep current status' },
+              { value: 'NEW', label: 'NEW' },
+              { value: 'ACTIVE', label: 'ACTIVE' },
+              { value: 'PENDING', label: 'PENDING' },
+              { value: 'ON_HOLD', label: 'ON HOLD' },
+              { value: 'COMPLETED', label: 'COMPLETED' }
+            ]}
+            value={intStatus}
+            onChange={(e) => setIntStatus(e.target.value)}
+          />
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Call Details & Update Notes *</label>
+            <textarea
+              value={intNotes}
+              onChange={(e) => setIntNotes(e.target.value)}
+              rows="4"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              placeholder="Record call summary, client responses, or case updates..."
+            />
+          </div>
+
+          <Button onClick={handleAddInteraction} className="w-full">Save Interaction Log</Button>
         </div>
       </Modal>
 

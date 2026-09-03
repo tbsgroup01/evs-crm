@@ -39,7 +39,7 @@ export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, app
     if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
     return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 
@@ -58,14 +58,19 @@ export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, app
     reportLinks.push({ label: 'Reports', to: '/reports', icon: Clipboard });
   } else if (user?.role === 'COUNSELOR') {
     crmLinks.push({ label: 'My Leads', to: '/leads', icon: Users });
+    crmLinks.push({ label: 'Cases', to: '/cases', icon: Folder });
+    crmLinks.push({ label: 'Documents', to: '/documents', icon: FileText });
     crmLinks.push({ label: 'Notifications', to: '/notifications', icon: Bell });
   } else if (user?.role === 'CASE_MANAGER') {
     crmLinks.push({ label: 'My Cases', to: '/cases', icon: Folder });
     crmLinks.push({ label: 'Documents', to: '/documents', icon: FileText });
   }
 
-  if (user?.role === 'ADMIN') {
+  if (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER' || user?.role === 'CASE_MANAGER' || user?.role === 'COUNSELOR') {
     mgmtLinks.push({ label: 'Payments Ledger', to: '/payments', icon: Clipboard });
+  }
+
+  if (user?.role === 'ADMIN') {
     mgmtLinks.push({ label: 'Doc Categories', to: '/document-categories', icon: FileText });
     mgmtLinks.push({ label: 'Users Manager', to: '/users', icon: UserIcon });
     adminLinks.push({ label: 'Notifications', to: '/notifications', icon: Bell });

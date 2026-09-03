@@ -8,7 +8,9 @@ const {
   bulkDeleteCases,
   updateCaseStatus,
   addCaseNote,
-  exportCases
+  exportCases,
+  getCaseInteractions,
+  addCaseInteraction
 } = require('../controllers/case');
 const {
   getUnassignedCases,
@@ -37,11 +39,11 @@ const router = express.Router();
 
 router.post('/leads/:id/convert', authenticate, convertLeadToCase);
 
-router.get('/cases', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), getCases);
-router.get('/cases/export', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), exportCases);
+router.get('/cases', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR'), getCases);
+router.get('/cases/export', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR'), exportCases);
 router.get('/cases/unassigned', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getUnassignedCases);
 router.get('/case-managers/workload', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getCaseManagerWorkload);
-router.get('/cases/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER'), getCaseById);
+router.get('/cases/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR'), getCaseById);
 router.put('/cases/:id', authenticate, updateCase);
 router.delete('/cases/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), deleteCase);
 router.post('/cases/bulk-delete', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkDeleteCases);
@@ -49,6 +51,8 @@ router.patch('/cases/:id/status', authenticate, updateCaseStatus);
 router.post('/cases/:id/assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), assignCase);
 router.post('/cases/bulk-assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkAssignCases);
 router.post('/cases/:id/notes', authenticate, addCaseNote);
+router.get('/cases/:id/interactions', authenticate, getCaseInteractions);
+router.post('/cases/:id/interactions', authenticate, addCaseInteraction);
 
 router.get('/document-types', authenticate, getDocumentTypes);
 router.post('/document-types', authenticate, authorize('ADMIN'), createDocumentType);

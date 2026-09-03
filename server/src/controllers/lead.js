@@ -5,6 +5,10 @@ const { leadCreateSchema, leadUpdateSchema } = require('../validators/lead');
 const createLead = async (req, res) => {
   try {
     const validated = leadCreateSchema.parse(req.body);
+    if (req.user.role.name === 'COUNSELOR') {
+      delete validated.profit;
+    }
+
     const maxId = (await Lead.max('id', { paranoid: false })) || 0;
     let nextNum = 1000 + maxId + 1;
     let leadNumber = `LEAD-${nextNum}`;
@@ -16,8 +20,15 @@ const createLead = async (req, res) => {
       exists = await Lead.findOne({ where: { lead_number: leadNumber }, paranoid: false });
     }
 
+    const numAdults = validated.adults !== undefined ? parseInt(validated.adults) : 1;
+    const numKids = validated.kids !== undefined ? parseInt(validated.kids) : 0;
+    const totalPax = numAdults + numKids;
+
     const lead = await Lead.create({
       ...validated,
+      adults: numAdults,
+      kids: numKids,
+      total_pax: totalPax,
       lead_number: leadNumber,
       created_by: req.user.id
     });
@@ -54,6 +65,7 @@ const getLeads = async (req, res) => {
       counselor_id,
       lead_source,
       country,
+      nationality,
       city,
       date_from,
       date_to,
@@ -74,8 +86,8 @@ const getLeads = async (req, res) => {
 
     if (status) where.status = status;
     if (lead_source) where.lead_source = lead_source;
-    if (country) where.country = country;
-    if (city) where.city = city;
+    if (nationality) where.nationality = nationality;
+    else if (country) where.country = country;
 
     if (search) {
       where[Op.or] = [
@@ -104,10 +116,18 @@ const getLeads = async (req, res) => {
       ]
     });
 
+    const formattedRows = rows.map(l => {
+      const data = l.toJSON();
+      if (req.user.role.name === 'COUNSELOR') {
+        delete data.profit;
+      }
+      return data;
+    });
+
     return res.status(200).json({
       success: true,
       data: {
-        leads: rows,
+        leads: formattedRows,
         total: count,
         page: parseInt(page),
         totalPages: Math.ceil(count / parseInt(limit))
@@ -135,7 +155,12 @@ const getLeadById = async (req, res) => {
 
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found or access denied' });
 
-    return res.status(200).json({ success: true, data: lead });
+    const data = lead.toJSON();
+    if (req.user.role.name === 'COUNSELOR') {
+      delete data.profit;
+    }
+
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch lead details', errors: [error.message] });
   }
@@ -144,6 +169,10 @@ const getLeadById = async (req, res) => {
 const updateLead = async (req, res) => {
   try {
     const validated = leadUpdateSchema.parse(req.body);
+    if (req.user.role.name === 'COUNSELOR') {
+      delete validated.profit;
+    }
+
     const where = { id: req.params.id };
     if (req.user.role.name === 'COUNSELOR') {
       where.counselor_id = req.user.id;
@@ -151,6 +180,18 @@ const updateLead = async (req, res) => {
 
     const lead = await Lead.findOne({ where });
     if (!lead) return res.status(404).json({ success: false, message: 'Lead not found' });
+
+    if (validated.adults !== undefined || validated.kids !== undefined) {
+      const numAdults = validated.adults !== undefined ? parseInt(validated.adults) : (lead.adults || 1);
+      const numKids = validated.kids !== undefined ? parseInt(validated.kids) : (lead.kids || 0);
+      validated.total_pax = numAdults + numKids;
+    }
+
+    if (validated.package_amount !== undefined || validated.paid_amount !== undefined) {
+      const pkgAmt = validated.package_amount !== undefined ? parseFloat(validated.package_amount || 0) : parseFloat(lead.package_amount || 0);
+      const paidAmt = validated.paid_amount !== undefined ? parseFloat(validated.paid_amount || 0) : parseFloat(lead.paid_amount || 0);
+      validated.pending_amount = Math.max(0, pkgAmt - paidAmt);
+    }
 
     const oldValue = JSON.stringify(lead);
     await lead.update(validated);
@@ -166,7 +207,12 @@ const updateLead = async (req, res) => {
       ip_address: req.ip
     });
 
-    return res.status(200).json({ success: true, data: lead });
+    const data = lead.toJSON();
+    if (req.user.role.name === 'COUNSELOR') {
+      delete data.profit;
+    }
+
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message || 'Validation failed', errors: error.errors || [] });
   }

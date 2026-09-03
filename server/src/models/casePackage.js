@@ -20,7 +20,7 @@ module.exports = (sequelize) => {
     },
     package_id: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: true
     },
     package_amount: {
       type: DataTypes.DECIMAL(12, 2),

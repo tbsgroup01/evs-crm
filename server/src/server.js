@@ -10,8 +10,8 @@ const startServer = async () => {
     await sequelize.authenticate();
     logger.info('MySQL Database connection established successfully.');
 
-    await sequelize.sync({ alter: true });
-    logger.info('Database models synchronized successfully with alter: true.');
+    await sequelize.sync();
+    logger.info('Database models synchronized successfully.');
 
     app.listen(PORT, () => {
       logger.info(`Server running in ${env.NODE_ENV} mode on port ${PORT}`);

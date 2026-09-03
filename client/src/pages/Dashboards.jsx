@@ -6,7 +6,113 @@ import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
 import { DataTable } from '../components/DataTable';
 import { AuthContext } from '../App';
-import { Users, FileCheck, Landmark, AlertCircle, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Flame, Sparkles, Activity } from 'lucide-react';
+import { Users, FileCheck, Landmark, AlertCircle, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Flame, Sparkles, Activity, Calendar, Filter } from 'lucide-react';
+
+import { Sun, History } from 'lucide-react';
+
+export const DateFilterHeader = ({ filterType, setFilterType, dateFrom, setDateFrom, dateTo, setDateTo }) => {
+  const handleFilterTypeChange = (type) => {
+    setFilterType(type);
+    const now = new Date();
+    if (type === 'ALL') {
+      setDateFrom('');
+      setDateTo('');
+    } else if (type === 'TODAY') {
+      const d = now.toISOString().split('T')[0];
+      setDateFrom(d);
+      setDateTo(d);
+    } else if (type === 'YESTERDAY') {
+      const prev = new Date(now);
+      prev.setDate(now.getDate() - 1);
+      const d = prev.toISOString().split('T')[0];
+      setDateFrom(d);
+      setDateTo(d);
+    } else if (type === 'THIS_MONTH') {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const todayStr = now.toISOString().split('T')[0];
+      setDateFrom(firstDay);
+      setDateTo(todayStr);
+    } else if (type === 'LAST_MONTH') {
+      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+      const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+      setDateFrom(firstDayLastMonth);
+      setDateTo(lastDayLastMonth);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* Left Title & Icon */}
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+          <Calendar className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-tight">Dashboard Time Filter</h3>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">Customize the date range to view dashboard insights.</p>
+        </div>
+        <div className="hidden lg:block h-8 w-px bg-slate-200 mx-2" />
+      </div>
+
+      {/* Preset Filter Buttons */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: 'ALL', label: 'All Time', Icon: History },
+          { id: 'TODAY', label: 'Today', Icon: Sun },
+          { id: 'YESTERDAY', label: 'Yesterday', Icon: Calendar },
+          { id: 'THIS_MONTH', label: 'This Month', Icon: Calendar },
+          { id: 'LAST_MONTH', label: 'Last Month', Icon: Calendar },
+          { id: 'CUSTOM', label: 'Custom Dates', Icon: Calendar }
+        ].map(({ id, label, Icon }) => {
+          const isActive = filterType === id;
+          return (
+            <button
+              key={id}
+              onClick={() => handleFilterTypeChange(id)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isActive
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-sm shadow-blue-500/20'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : (id === 'TODAY' ? 'text-amber-500' : 'text-slate-400')}`} />
+              {label}
+            </button>
+          );
+        })}
+
+        {/* Custom Date Inputs Section */}
+        {filterType === 'CUSTOM' && (
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 bg-slate-50 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-600"
+            />
+            <span className="text-xs font-semibold text-slate-400">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 bg-slate-50 focus:outline-none focus:bg-white focus:ring-1 focus:ring-blue-600"
+            />
+            <button
+              onClick={() => {
+                if (dateFrom && dateTo) {
+                  setFilterType('CUSTOM');
+                }
+              }}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const AdminDashboard = () => {
   const [summary, setSummary] = useState(null);
@@ -14,12 +120,20 @@ export const AdminDashboard = () => {
   const [growth, setGrowth] = useState([]);
   const [recent, setRecent] = useState(null);
 
+  const [filterType, setFilterType] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   useEffect(() => {
-    axios.get('/api/v1/dashboard/summary').then(res => setSummary(res.data.data));
-    axios.get('/api/v1/dashboard/lead-status').then(res => setStatusDist(res.data.data));
-    axios.get('/api/v1/dashboard/monthly-growth').then(res => setGrowth(res.data.data));
-    axios.get('/api/v1/dashboard/recent-activity').then(res => setRecent(res.data.data));
-  }, []);
+    const params = {};
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+
+    axios.get('/api/v1/dashboard/summary', { params }).then(res => setSummary(res.data.data));
+    axios.get('/api/v1/dashboard/lead-status', { params }).then(res => setStatusDist(res.data.data));
+    axios.get('/api/v1/dashboard/monthly-growth', { params }).then(res => setGrowth(res.data.data));
+    axios.get('/api/v1/dashboard/recent-activity', { params }).then(res => setRecent(res.data.data));
+  }, [dateFrom, dateTo]);
 
   const sparkLeads = [{ y: 10 }, { y: 15 }, { y: 8 }, { y: 22 }, { y: 14 }, { y: 25 }, { y: 30 }];
   const sparkCases = [{ y: 5 }, { y: 12 }, { y: 7 }, { y: 18 }, { y: 10 }, { y: 15 }, { y: 20 }];
@@ -49,6 +163,15 @@ export const AdminDashboard = () => {
 
   return (
     <div className="space-y-6">
+      <DateFilterHeader
+        filterType={filterType}
+        setFilterType={setFilterType}
+        dateFrom={dateFrom}
+        setDateFrom={setDateFrom}
+        dateTo={dateTo}
+        setDateTo={setDateTo}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
           <div className="flex items-center justify-between">
@@ -64,15 +187,15 @@ export const AdminDashboard = () => {
           </div>
           <div className="mt-2">
             <p className="text-3xl font-bold text-slate-900">{summary?.totalLeads || 0}</p>
-            <p className="text-xs text-slate-400 mt-1">from last month</p>
+            <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparkLeads} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Area type="monotone" dataKey="y" stroke="#3b82f6" strokeWidth={1.5} fill="url(#colorBlue)" />
@@ -95,15 +218,15 @@ export const AdminDashboard = () => {
           </div>
           <div className="mt-2">
             <p className="text-3xl font-bold text-slate-900">{summary?.activeCases || 0}</p>
-            <p className="text-xs text-slate-400 mt-1">from last month</p>
+            <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparkCases} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Area type="monotone" dataKey="y" stroke="#10b981" strokeWidth={1.5} fill="url(#colorGreen)" />
@@ -126,15 +249,15 @@ export const AdminDashboard = () => {
           </div>
           <div className="mt-2">
             <p className="text-2xl font-bold text-slate-900">AED {summary?.totalRevenue?.toFixed(2) || '0.00'}</p>
-            <p className="text-xs text-slate-400 mt-1">from last month</p>
+            <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparkRev} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Area type="monotone" dataKey="y" stroke="#8b5cf6" strokeWidth={1.5} fill="url(#colorPurple)" />
@@ -157,15 +280,15 @@ export const AdminDashboard = () => {
           </div>
           <div className="mt-2">
             <p className="text-2xl font-bold text-slate-900">AED {summary?.outstandingAmount?.toFixed(2) || '0.00'}</p>
-            <p className="text-xs text-slate-400 mt-1">from last month</p>
+            <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sparkOut} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorOrange" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <Area type="monotone" dataKey="y" stroke="#f97316" strokeWidth={1.5} fill="url(#colorOrange)" />
@@ -178,21 +301,19 @@ export const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-base font-bold text-slate-900">Monthly Lead Registrations</h2>
-            <select className="text-xs border border-gray-200 rounded px-2.5 py-1 text-slate-500 bg-white">
-              <option>Last 6 Months</option>
-            </select>
+            <h2 className="text-base font-bold text-slate-900">Lead Registration Growth</h2>
+            <span className="text-xs text-slate-400">Date Range Filtered</span>
           </div>
           <div className="h-80">
             {formattedGrowth.length === 0 ? (
-              <p className="text-center text-slate-500 py-20">No growth data loaded.</p>
+              <p className="text-center text-slate-500 py-20">No growth data for selected period.</p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={formattedGrowth} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorGrowth" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/>
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -217,9 +338,7 @@ export const AdminDashboard = () => {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-base font-bold text-slate-900">Lead Status Distribution</h2>
-            <select className="text-xs border border-gray-200 rounded px-2.5 py-1 text-slate-500 bg-white">
-              <option>This Month</option>
-            </select>
+            <span className="text-xs text-slate-400">Filtered</span>
           </div>
           <div className="flex-1 flex flex-col md:flex-row lg:flex-col items-center justify-center gap-6">
             <div className="h-48 w-48 relative flex items-center justify-center">
@@ -307,8 +426,16 @@ export const CounselorDashboard = () => {
   const [stats, setStats] = useState(null);
   const [followups, setFollowups] = useState([]);
 
+  const [filterType, setFilterType] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   useEffect(() => {
-    axios.get('/api/v1/leads?limit=100').then(res => {
+    const params = {};
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+
+    axios.get('/api/v1/leads', { params: { ...params, limit: 100 } }).then(res => {
       const leads = res.data.data.leads || [];
       setStats({
         total: leads.length,
@@ -320,10 +447,10 @@ export const CounselorDashboard = () => {
       });
     });
 
-    axios.get('/api/v1/follow-ups').then(res => {
+    axios.get('/api/v1/follow-ups', { params }).then(res => {
       setFollowups(res.data.data || []);
     });
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const pieData = [
     { name: 'New Leads', count: stats?.new || 0, color: '#3b82f6' },
@@ -345,6 +472,15 @@ export const CounselorDashboard = () => {
 
   return (
     <div className="space-y-6">
+      <DateFilterHeader
+        filterType={filterType}
+        setFilterType={setFilterType}
+        dateFrom={dateFrom}
+        setDateFrom={setDateFrom}
+        dateTo={dateTo}
+        setDateTo={setDateTo}
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-gradient-to-r from-slate-900 to-blue-900 text-white p-6 rounded-2xl shadow-sm">
         <div>
           <h1 className="text-2xl font-bold">Welcome back, {user?.name || 'Counselor'}! 👋</h1>
@@ -507,8 +643,16 @@ export const CaseManagerDashboard = () => {
   const [cases, setCases] = useState([]);
   const [stats, setStats] = useState(null);
 
+  const [filterType, setFilterType] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   useEffect(() => {
-    axios.get('/api/v1/cases').then(res => {
+    const params = {};
+    if (dateFrom) params.date_from = dateFrom;
+    if (dateTo) params.date_to = dateTo;
+
+    axios.get('/api/v1/cases', { params }).then(res => {
       const list = res.data.data.cases || [];
       setCases(list);
       setStats({
@@ -520,7 +664,7 @@ export const CaseManagerDashboard = () => {
         on_hold: list.filter(c => c.status === 'ON_HOLD').length
       });
     });
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const pieData = [
     { name: 'New', count: stats?.new || 0, color: '#3b82f6' },
@@ -541,6 +685,15 @@ export const CaseManagerDashboard = () => {
 
   return (
     <div className="space-y-6">
+      <DateFilterHeader
+        filterType={filterType}
+        setFilterType={setFilterType}
+        dateFrom={dateFrom}
+        setDateFrom={setDateFrom}
+        dateTo={dateTo}
+        setDateTo={setDateTo}
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 bg-gradient-to-r from-slate-900 to-indigo-900 text-white p-6 rounded-2xl shadow-sm">
         <div>
           <h1 className="text-2xl font-bold">Welcome back, {user?.name || 'Case Manager'}! 👋</h1>
@@ -696,3 +849,5 @@ export const CaseManagerDashboard = () => {
     </div>
   );
 };
+
+export default AdminDashboard;

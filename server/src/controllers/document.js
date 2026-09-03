@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Document, Case, DocumentType, ActivityLog, Notification, User } = require('../models');
+const { Document, Case, DocumentType, ActivityLog, Notification, User, Lead } = require('../models');
 const { createNotification } = require('../services/notificationService');
 
 const uploadDocument = async (req, res) => {
@@ -13,13 +13,20 @@ const uploadDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'case_id and document_type_id are required' });
     }
 
-    const singleCase = await Case.findByPk(case_id);
+    const singleCase = await Case.findByPk(case_id, { include: [{ model: Lead }] });
     if (!singleCase) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(404).json({ success: false, message: 'Case not found' });
     }
 
-    if (req.user.role.name === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
+    const roleName = req.user.role?.name || req.user.role;
+
+    if (roleName === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ success: false, message: 'Access denied to this case' });
+    }
+
+    if (roleName === 'COUNSELOR' && singleCase.Lead?.counselor_id !== req.user.id) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       return res.status(403).json({ success: false, message: 'Access denied to this case' });
     }
@@ -40,7 +47,7 @@ const uploadDocument = async (req, res) => {
       entity_type: 'Case',
       entity_id: case_id,
       action: 'DOCUMENT_UPLOADED',
-      description: `Document ${req.file.originalname} uploaded for case ${singleCase.case_number}`,
+      description: `Document ${req.file.originalname} uploaded by ${req.user.name} for case ${singleCase.case_number}`,
       ip_address: req.ip
     });
 
@@ -62,11 +69,20 @@ const getDocuments = async (req, res) => {
 
     const caseInclude = {
       model: Case,
-      attributes: ['id', 'case_number', 'case_manager_id']
+      attributes: ['id', 'case_number', 'case_manager_id', 'lead_id']
     };
 
-    if (req.user.role.name === 'CASE_MANAGER') {
+    const roleName = req.user.role?.name || req.user.role;
+
+    if (roleName === 'CASE_MANAGER') {
       caseInclude.where = { case_manager_id: req.user.id };
+    } else if (roleName === 'COUNSELOR') {
+      caseInclude.include = [{
+        model: Lead,
+        where: { counselor_id: req.user.id },
+        attributes: ['id', 'counselor_id']
+      }];
+      caseInclude.required = true;
     }
 
     const list = await Document.findAll({
@@ -88,14 +104,21 @@ const getDocuments = async (req, res) => {
 const downloadDocument = async (req, res) => {
   try {
     const { id } = req.params;
+    const roleName = req.user.role?.name || req.user.role;
     const document = await Document.findByPk(id, {
-      include: [{ model: Case, attributes: ['id', 'case_manager_id'] }]
+      include: [{ model: Case, attributes: ['id', 'case_manager_id', 'lead_id'], include: [{ model: Lead }] }]
     });
 
     if (!document) return res.status(404).json({ success: false, message: 'Document not found' });
 
-    if (req.user.role.name === 'CASE_MANAGER') {
+    if (roleName === 'CASE_MANAGER') {
       if (document.Case.case_manager_id !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Access denied to this file' });
+      }
+    }
+
+    if (roleName === 'COUNSELOR') {
+      if (document.uploaded_by !== req.user.id && document.Case?.Lead?.counselor_id !== req.user.id) {
         return res.status(403).json({ success: false, message: 'Access denied to this file' });
       }
     }

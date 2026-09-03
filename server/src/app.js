@@ -19,7 +19,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:5505'
+  'https://evs-crm.towsindia.com'
 ].filter(Boolean);
 
 app.use(cors({
@@ -42,7 +42,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/v1/health', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'CRM API is running'

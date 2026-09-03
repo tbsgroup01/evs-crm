@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Menu, Search, Bell, MessageSquare, Moon, Maximize } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,40 @@ export const Navbar = ({
   setMobileOpen
 }) => {
   const navigate = useNavigate();
+  const notifRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setNotifOpen(false);
+      }
+    };
+
+    if (notifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [notifOpen, setNotifOpen]);
+
+  useEffect(() => {
+    const handleClickOutsideSearch = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setSearchResults([]);
+      }
+    };
+
+    if (searchResults.length > 0) {
+      document.addEventListener('mousedown', handleClickOutsideSearch);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideSearch);
+    };
+  }, [searchResults, setSearchResults]);
 
   return (
     <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 z-30 shrink-0">
@@ -26,7 +60,7 @@ export const Navbar = ({
         <button onClick={() => setMobileOpen(true)} className="lg:hidden text-gray-500 hover:text-gray-700 mr-4">
           <Menu className="h-6 w-6" />
         </button>
-        <div className="relative w-64 md:w-96">
+        <div ref={searchRef} className="relative w-64 md:w-96">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <input
             type="text"
@@ -62,7 +96,7 @@ export const Navbar = ({
         </div>
       </div>
       <div className="flex items-center gap-4">
-        <div className="relative">
+        <div ref={notifRef} className="relative">
           <button onClick={() => setNotifOpen(!notifOpen)} className="p-2 text-slate-400 hover:text-slate-600 relative rounded-full hover:bg-slate-50 transition-colors">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
