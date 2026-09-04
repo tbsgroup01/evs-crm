@@ -1,83 +1,116 @@
 const fs = require('fs');
 const path = require('path');
+const { Op } = require('sequelize');
 const { sequelize, Payment, Case, CasePackage, ActivityLog, Notification, Lead, User, Role } = require('../models');
 const { createNotification } = require('../services/notificationService');
+const { logAudit } = require('../utils/auditLogger');
+
+const getRoleLabel = (user) => {
+  const name = user?.role?.name || user?.role || 'User';
+  if (name === 'ADMIN') return 'Admin';
+  if (name === 'LEAD_MANAGER' || name === 'MANAGER') return 'Manager';
+  if (name === 'CASE_MANAGER') return 'Case Manager';
+  if (name === 'COUNSELOR') return 'Counselor';
+  return name;
+};
 
 const getPayments = async (req, res) => {
   try {
     const roleName = req.user.role?.name || req.user.role;
     const caseWhere = {};
 
+    if (roleName === 'CASE_MANAGER') {
+      caseWhere.case_manager_id = req.user.id;
+    }
+
     const leadInclude = {
       model: Lead,
-      attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'payment_date', 'notes', 'counselor_id'],
+      attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'counselor_id'],
       include: [{ model: User, as: 'counselor', attributes: ['id', 'name'] }]
     };
 
-    if (roleName === 'CASE_MANAGER') {
-      caseWhere.case_manager_id = req.user.id;
-    } else if (roleName === 'COUNSELOR') {
+    if (roleName === 'COUNSELOR') {
       leadInclude.where = { counselor_id: req.user.id };
       leadInclude.required = true;
     }
 
-    const cases = await Case.findAll({
-      where: caseWhere,
+    const caseInclude = {
+      model: Case,
       include: [
         leadInclude,
         { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] },
-        { model: CasePackage, as: 'casePackages', attributes: ['id', 'package_amount'] },
-        {
-          model: Payment,
-          as: 'payments',
-          include: [{ model: User, as: 'creator', attributes: ['id', 'name'] }]
-        }
+        { model: CasePackage, as: 'casePackages', attributes: ['id', 'package_amount'] }
+      ]
+    };
+
+    if (Object.keys(caseWhere).length > 0) {
+      caseInclude.where = caseWhere;
+    }
+
+    const explicitPayments = await Payment.findAll({
+      include: [
+        caseInclude,
+        { model: User, as: 'creator', attributes: ['id', 'name'] }
       ],
       order: [['id', 'DESC']]
     });
 
-    const caseRecords = cases.map(c => {
-      const caseData = c.toJSON();
-      const casePayments = caseData.payments || [];
-      const sumPayments = casePayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-      const pkgAmt = parseFloat(caseData.casePackages?.[0]?.package_amount || caseData.Lead?.package_amount || 0);
-      const effectivePaid = Math.max(sumPayments, parseFloat(caseData.Lead?.paid_amount || 0));
-      const pendingAmt = Math.max(0, pkgAmt - effectivePaid);
+    // Also include unconverted leads with initial payments (paid_amount > 0)
+    const leadWhere = { paid_amount: { [Op.gt]: 0 } };
+    if (roleName === 'COUNSELOR') {
+      leadWhere.counselor_id = req.user.id;
+    }
 
-      const latestPayment = casePayments.length > 0 ? casePayments[0] : null;
-      const latestDate = latestPayment?.payment_date || caseData.Lead?.payment_date || caseData.opened_at || caseData.createdAt;
-
-      return {
-        id: caseData.id,
-        amount: effectivePaid,
-        package_amount: pkgAmt,
-        pending_amount: pendingAmt,
-        payment_date: latestDate,
-        payment_method: latestPayment?.payment_method || (effectivePaid > 0 ? 'CASH/ONLINE' : 'DEAL_PACKAGE'),
-        transaction_id: latestPayment?.transaction_id || caseData.case_number,
-        notes: latestPayment?.notes || caseData.Lead?.notes || 'Case deal registered',
-        receipt_path: latestPayment?.receipt_path || null,
-        created_by: latestPayment?.created_by || caseData.Lead?.counselor_id || req.user.id,
-        creator: latestPayment?.creator || (caseData.Lead?.counselor ? { id: caseData.Lead.counselor.id, name: caseData.Lead.counselor.name } : (caseData.caseManager ? { id: caseData.caseManager.id, name: caseData.caseManager.name } : null)),
-        paymentCount: casePayments.length,
-        Case: {
-          id: caseData.id,
-          case_number: caseData.case_number,
-          case_manager_id: caseData.case_manager_id,
-          status: caseData.status,
-          lead_id: caseData.lead_id,
-          Lead: {
-            ...caseData.Lead,
-            package_amount: pkgAmt,
-            paid_amount: effectivePaid,
-            pending_amount: pendingAmt
-          },
-          casePackages: caseData.casePackages
-        }
-      };
+    const leadsWithInitialPayments = await Lead.findAll({
+      where: leadWhere,
+      include: [
+        { model: User, as: 'counselor', attributes: ['id', 'name'] },
+        { model: User, as: 'creator', attributes: ['id', 'name'] }
+      ]
     });
 
-    return res.status(200).json({ success: true, data: caseRecords });
+    const leadIdsWithCases = new Set(explicitPayments.map(p => p.Case?.Lead?.id).filter(Boolean));
+
+    const initialLeadPayments = [];
+    for (const lead of leadsWithInitialPayments) {
+      if (!leadIdsWithCases.has(lead.id)) {
+        const c = await Case.findOne({
+          where: { lead_id: lead.id },
+          include: [
+            { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] }
+          ]
+        });
+
+        initialLeadPayments.push({
+          id: `lead-init-${lead.id}`,
+          amount: lead.paid_amount,
+          payment_date: lead.payment_date || lead.created_at,
+          payment_method: 'CASH',
+          transaction_id: 'INITIAL_LEAD_PAYMENT',
+          notes: 'Initial payment recorded during lead entry',
+          created_by: lead.created_by,
+          status: 'APPROVED',
+          creator: lead.creator ? { name: lead.creator.name } : { name: 'Staff' },
+          Case: c ? {
+            id: c.id,
+            case_number: c.case_number,
+            caseManager: c.caseManager,
+            Lead: lead
+          } : {
+            id: null,
+            case_number: lead.lead_number,
+            Lead: lead
+          }
+        });
+      }
+    }
+
+    const combinedPayments = [
+      ...explicitPayments.map(p => p.toJSON ? p.toJSON() : p),
+      ...initialLeadPayments
+    ];
+
+    return res.status(200).json({ success: true, data: combinedPayments });
   } catch (error) {
     console.error('Error in getPayments:', error);
     return res.status(500).json({ success: false, message: 'Failed to retrieve payments', errors: [error.message] });
@@ -122,10 +155,19 @@ const getCasePaymentSummary = async (req, res) => {
     });
 
     const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
-    const totalPaid = await Payment.sum('amount', { where: { case_id: id } }) || (singleCase.Lead?.paid_amount ? parseFloat(singleCase.Lead.paid_amount) : 0);
+    const paymentCount = await Payment.count({ where: { case_id: id } });
+    const approvedSum = await Payment.sum('amount', { where: { case_id: id, status: 'APPROVED' } }) || 0;
+    
+    let totalPaid = 0;
+    if (paymentCount > 0) {
+      totalPaid = approvedSum;
+    } else {
+      totalPaid = singleCase.Lead?.paid_amount ? parseFloat(singleCase.Lead.paid_amount) : 0;
+    }
+
     const balance = Math.max(0, packageAmount - totalPaid);
 
-    let paymentStatus = 'PENDING';
+    let paymentStatus = 'UNPAID';
     if (totalPaid >= packageAmount && packageAmount > 0) {
       paymentStatus = 'FULLY_PAID';
     } else if (totalPaid > 0) {
@@ -171,6 +213,9 @@ const addPayment = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
+    const userRole = req.user.role?.name || req.user.role;
+    const initialStatus = ['ADMIN', 'LEAD_MANAGER'].includes(userRole) ? 'APPROVED' : 'PENDING';
+
     const payment = await Payment.create({
       case_id: singleCase.id,
       amount,
@@ -179,7 +224,8 @@ const addPayment = async (req, res) => {
       transaction_id,
       notes,
       receipt_path: req.file ? req.file.path : null,
-      created_by: req.user.id
+      created_by: req.user.id,
+      status: initialStatus
     }, { transaction });
 
     const cp = await CasePackage.findOne({
@@ -189,31 +235,39 @@ const addPayment = async (req, res) => {
     });
 
     const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
-    const totalPaid = await Payment.sum('amount', { where: { case_id: singleCase.id }, transaction }) || 0;
-    const balance = Math.max(0, packageAmount - totalPaid);
+    const approvedSum = await Payment.sum('amount', { where: { case_id: singleCase.id, status: 'APPROVED' }, transaction }) || 0;
+    const balance = Math.max(0, packageAmount - approvedSum);
 
     if (singleCase.Lead) {
       await singleCase.Lead.update({
-        paid_amount: totalPaid,
+        paid_amount: approvedSum,
         pending_amount: balance
       }, { transaction });
     }
 
     let paymentStatus = 'PENDING';
-    if (totalPaid >= packageAmount && packageAmount > 0) {
+    if (approvedSum >= packageAmount && packageAmount > 0) {
       paymentStatus = 'FULLY_PAID';
-    } else if (totalPaid > 0) {
+    } else if (approvedSum > 0) {
       paymentStatus = 'PARTIAL';
     }
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Case',
-      entity_id: singleCase.id,
+    const roleLabel = getRoleLabel(req.user);
+    const formattedAmount = `AED ${parseFloat(amount).toLocaleString()}`;
+    const statusNote = initialStatus === 'APPROVED' ? 'APPROVED & CONFIRMED' : 'PENDING MANAGER APPROVAL';
+    const desc = `${roleLabel} ${req.user.name} submitted payment of ${formattedAmount} via ${payment_method || 'CASH'} (${statusNote})`;
+
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: singleCase.id,
+      leadId: singleCase.lead_id,
       action: 'PAYMENT_RECEIVED',
-      description: `Payment of ${amount} received via ${payment_method}. Transaction ID: ${transaction_id || 'N/A'}. Balance: ${balance.toFixed(2)}. Status: ${paymentStatus}`,
-      ip_address: req.ip
-    }, { transaction });
+      oldValue: `Paid: AED ${approvedSum.toLocaleString()}`,
+      newValue: `New Payment: ${formattedAmount} (${initialStatus})`,
+      description: desc,
+      transaction
+    });
 
     const admins = await User.findAll({
       include: [{ model: Role, as: 'role', where: { name: ['ADMIN', 'LEAD_MANAGER'] } }],
@@ -224,19 +278,153 @@ const addPayment = async (req, res) => {
       await createNotification({
         userId: admin.id,
         type: 'PAYMENT_RECEIVED',
-        title: 'Payment Logged',
-        message: `A payment of ${amount} was logged on Case ${singleCase.case_number} (${singleCase.Lead.client_name})`,
+        title: initialStatus === 'APPROVED' ? 'Payment Approved' : 'Payment Needs Approval',
+        message: `A payment of ${formattedAmount} was logged on Case ${singleCase.case_number} (${singleCase.Lead?.client_name}) - Status: ${initialStatus}`,
         entityType: 'Case',
         entityId: singleCase.id
       });
     }
 
     await transaction.commit();
-    return res.status(201).json({ success: true, data: { payment, summary: { packageAmount, totalPaid, balance, paymentStatus } } });
+    return res.status(201).json({ success: true, data: { payment, summary: { packageAmount, totalPaid: approvedSum, balance, paymentStatus } } });
   } catch (error) {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     await transaction.rollback();
     return res.status(500).json({ success: false, message: 'Failed to process payment', errors: [error.message] });
+  }
+};
+
+const approvePayment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role?.name || req.user.role;
+    if (!['ADMIN', 'LEAD_MANAGER'].includes(userRole)) {
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Only Admin or Manager can approve payments' });
+    }
+
+    const payment = await Payment.findByPk(id, {
+      include: [{ model: Case, include: [Lead] }],
+      transaction
+    });
+
+    if (!payment) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    const oldStatus = payment.status || 'PENDING';
+    await payment.update({ status: 'APPROVED' }, { transaction });
+
+    const caseId = payment.case_id;
+    const singleCase = payment.Case;
+
+    const cp = await CasePackage.findOne({
+      where: { case_id: caseId },
+      order: [['assigned_at', 'DESC']],
+      transaction
+    });
+
+    const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase?.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
+    const approvedSum = await Payment.sum('amount', { where: { case_id: caseId, status: 'APPROVED' }, transaction }) || 0;
+    const balance = Math.max(0, packageAmount - approvedSum);
+
+    if (singleCase?.Lead) {
+      await singleCase.Lead.update({
+        paid_amount: approvedSum,
+        pending_amount: balance
+      }, { transaction });
+    }
+
+    const roleLabel = getRoleLabel(req.user);
+    const formattedAmount = `AED ${parseFloat(payment.amount).toLocaleString()}`;
+    const desc = `${roleLabel} ${req.user.name} approved payment of ${formattedAmount} for Case ${singleCase?.case_number || caseId}`;
+
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: caseId,
+      leadId: singleCase?.lead_id,
+      action: 'PAYMENT_APPROVED',
+      oldValue: oldStatus,
+      newValue: 'APPROVED',
+      description: desc,
+      transaction
+    });
+
+    await transaction.commit();
+    return res.status(200).json({ success: true, message: 'Payment approved successfully', data: payment });
+  } catch (error) {
+    await transaction.rollback();
+    return res.status(500).json({ success: false, message: 'Failed to approve payment', errors: [error.message] });
+  }
+};
+
+const rejectPayment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role?.name || req.user.role;
+    if (!['ADMIN', 'LEAD_MANAGER'].includes(userRole)) {
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Only Admin or Manager can reject payments' });
+    }
+
+    const payment = await Payment.findByPk(id, {
+      include: [{ model: Case, include: [Lead] }],
+      transaction
+    });
+
+    if (!payment) {
+      await transaction.rollback();
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    const oldStatus = payment.status || 'PENDING';
+    await payment.update({ status: 'REJECTED' }, { transaction });
+
+    const caseId = payment.case_id;
+    const singleCase = payment.Case;
+
+    const cp = await CasePackage.findOne({
+      where: { case_id: caseId },
+      order: [['assigned_at', 'DESC']],
+      transaction
+    });
+
+    const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase?.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
+    const approvedSum = await Payment.sum('amount', { where: { case_id: caseId, status: 'APPROVED' }, transaction }) || 0;
+    const balance = Math.max(0, packageAmount - approvedSum);
+
+    if (singleCase?.Lead) {
+      await singleCase.Lead.update({
+        paid_amount: approvedSum,
+        pending_amount: balance
+      }, { transaction });
+    }
+
+    const roleLabel = getRoleLabel(req.user);
+    const formattedAmount = `AED ${parseFloat(payment.amount).toLocaleString()}`;
+    const desc = `${roleLabel} ${req.user.name} rejected payment of ${formattedAmount} for Case ${singleCase?.case_number || caseId}`;
+
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: caseId,
+      leadId: singleCase?.lead_id,
+      action: 'PAYMENT_REJECTED',
+      oldValue: oldStatus,
+      newValue: 'REJECTED',
+      description: desc,
+      transaction
+    });
+
+    await transaction.commit();
+    return res.status(200).json({ success: true, message: 'Payment rejected successfully', data: payment });
+  } catch (error) {
+    await transaction.rollback();
+    return res.status(500).json({ success: false, message: 'Failed to reject payment', errors: [error.message] });
   }
 };
 
@@ -267,10 +455,110 @@ const downloadPaymentReceipt = async (req, res) => {
   }
 };
 
+const bulkDeletePayments = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const userRole = req.user.role?.name || req.user.role;
+    if (!['ADMIN', 'LEAD_MANAGER'].includes(userRole)) {
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Only Admin or Manager can bulk delete payments' });
+    }
+
+    const { payment_ids } = req.body;
+    if (!Array.isArray(payment_ids) || payment_ids.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'No payment IDs provided for deletion' });
+    }
+
+    const virtualLeadIds = [];
+    const realPaymentIds = [];
+
+    payment_ids.forEach(id => {
+      if (typeof id === 'string' && id.startsWith('lead-init-')) {
+        const leadId = parseInt(id.replace('lead-init-', ''));
+        if (!isNaN(leadId)) virtualLeadIds.push(leadId);
+      } else {
+        const pId = parseInt(id);
+        if (!isNaN(pId)) realPaymentIds.push(pId);
+      }
+    });
+
+    if (virtualLeadIds.length > 0) {
+      const leads = await Lead.findAll({ where: { id: virtualLeadIds }, transaction });
+      for (const lead of leads) {
+        await lead.update({
+          paid_amount: 0,
+          pending_amount: lead.package_amount
+        }, { transaction });
+      }
+    }
+
+    if (realPaymentIds.length > 0) {
+      const payments = await Payment.findAll({
+        where: { id: realPaymentIds },
+        include: [{ model: Case, include: [Lead] }],
+        transaction
+      });
+
+      const affectedCaseIds = new Set();
+      for (const p of payments) {
+        if (p.receipt_path && fs.existsSync(p.receipt_path)) {
+          try { fs.unlinkSync(p.receipt_path); } catch (e) {}
+        }
+        if (p.case_id) affectedCaseIds.add(p.case_id);
+      }
+
+      await Payment.destroy({ where: { id: realPaymentIds }, transaction });
+
+      for (const caseId of affectedCaseIds) {
+        const singleCase = await Case.findByPk(caseId, { include: [Lead], transaction });
+        if (singleCase) {
+          const cp = await CasePackage.findOne({
+            where: { case_id: caseId },
+            order: [['assigned_at', 'DESC']],
+            transaction
+          });
+          const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
+          const approvedSum = await Payment.sum('amount', { where: { case_id: caseId, status: 'APPROVED' }, transaction }) || 0;
+          const balance = Math.max(0, packageAmount - approvedSum);
+
+          if (singleCase.Lead) {
+            await singleCase.Lead.update({
+              paid_amount: approvedSum,
+              pending_amount: balance
+            }, { transaction });
+          }
+        }
+      }
+    }
+
+    const roleLabel = getRoleLabel(req.user);
+    await logAudit({
+      req,
+      entityType: 'Payment',
+      entityId: 0,
+      action: 'BULK_DELETE_PAYMENTS',
+      oldValue: `Deleted Payment IDs: ${payment_ids.join(', ')}`,
+      newValue: 'DELETED',
+      description: `${roleLabel} ${req.user.name} bulk deleted ${payment_ids.length} payment record(s)`,
+      transaction
+    });
+
+    await transaction.commit();
+    return res.status(200).json({ success: true, message: `Successfully deleted ${payment_ids.length} payment record(s)` });
+  } catch (error) {
+    await transaction.rollback();
+    return res.status(500).json({ success: false, message: 'Failed to bulk delete payments', errors: [error.message] });
+  }
+};
+
 module.exports = {
   getPayments,
   getCasePayments,
   getCasePaymentSummary,
   addPayment,
-  downloadPaymentReceipt
+  approvePayment,
+  rejectPayment,
+  downloadPaymentReceipt,
+  bulkDeletePayments
 };

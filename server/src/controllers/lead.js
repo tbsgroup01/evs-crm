@@ -1,6 +1,16 @@
 const { Op } = require('sequelize');
-const { Lead, User, Role, LeadInteraction, ActivityLog, Notification } = require('../models');
+const { Lead, User, Role, LeadInteraction, ActivityLog, Notification, Case, CasePackage, Package } = require('../models');
 const { leadCreateSchema, leadUpdateSchema } = require('../validators/lead');
+const { logAudit } = require('../utils/auditLogger');
+
+const getRoleLabel = (user) => {
+  const name = user?.role?.name || user?.role || 'User';
+  if (name === 'ADMIN') return 'Admin';
+  if (name === 'LEAD_MANAGER' || name === 'MANAGER') return 'Manager';
+  if (name === 'CASE_MANAGER') return 'Case Manager';
+  if (name === 'COUNSELOR') return 'Counselor';
+  return name;
+};
 
 const createLead = async (req, res) => {
   try {
@@ -20,15 +30,22 @@ const createLead = async (req, res) => {
       exists = await Lead.findOne({ where: { lead_number: leadNumber }, paranoid: false });
     }
 
-    const numAdults = validated.adults !== undefined ? parseInt(validated.adults) : 1;
-    const numKids = validated.kids !== undefined ? parseInt(validated.kids) : 0;
+    const numAdults = validated.adults !== undefined && validated.adults !== null ? parseInt(validated.adults) : 1;
+    const numKids = validated.kids !== undefined && validated.kids !== null ? parseInt(validated.kids) : 0;
     const totalPax = numAdults + numKids;
+
+    const pkgAmt = validated.package_amount !== undefined && validated.package_amount !== null ? parseFloat(validated.package_amount) : 0;
+    const paidAmt = validated.paid_amount !== undefined && validated.paid_amount !== null ? parseFloat(validated.paid_amount) : 0;
+    const pendingAmt = Math.max(0, pkgAmt - paidAmt);
 
     const lead = await Lead.create({
       ...validated,
       adults: numAdults,
       kids: numKids,
       total_pax: totalPax,
+      package_amount: pkgAmt,
+      paid_amount: paidAmt,
+      pending_amount: pendingAmt,
       lead_number: leadNumber,
       created_by: req.user.id
     });
@@ -121,7 +138,15 @@ const getLeads = async (req, res) => {
       if (req.user.role.name === 'COUNSELOR') {
         delete data.profit;
       }
-      return data;
+      const pkgAmt = parseFloat(data.package_amount || 0);
+      const paidAmt = parseFloat(data.paid_amount || 0);
+      const pendAmt = data.pending_amount !== null && data.pending_amount !== undefined ? parseFloat(data.pending_amount) : Math.max(0, pkgAmt - paidAmt);
+      return {
+        ...data,
+        package_amount: pkgAmt,
+        paid_amount: paidAmt,
+        pending_amount: pendAmt
+      };
     });
 
     return res.status(200).json({
@@ -159,11 +184,62 @@ const getLeadById = async (req, res) => {
     if (req.user.role.name === 'COUNSELOR') {
       delete data.profit;
     }
+    const pkgAmt = parseFloat(data.package_amount || 0);
+    const paidAmt = parseFloat(data.paid_amount || 0);
+    const pendAmt = data.pending_amount !== null && data.pending_amount !== undefined ? parseFloat(data.pending_amount) : Math.max(0, pkgAmt - paidAmt);
 
-    return res.status(200).json({ success: true, data });
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...data,
+        package_amount: pkgAmt,
+        paid_amount: paidAmt,
+        pending_amount: pendAmt
+      }
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch lead details', errors: [error.message] });
   }
+};
+
+const formatLeadDiffs = (oldObj, newObj) => {
+  if (!oldObj || !newObj) return '';
+  const fields = {
+    client_name: 'Client Name',
+    mobile: 'Mobile Number',
+    email: 'Email',
+    country: 'Country',
+    nationality: 'Nationality',
+    city: 'City',
+    lead_source: 'Lead Source',
+    service_required: 'Service',
+    package_amount: 'Package Deal',
+    paid_amount: 'Paid Amount',
+    pending_amount: 'Pending Balance',
+    profit: 'Profit Margin',
+    status: 'Status',
+    notes: 'Notes',
+    adults: 'Adults',
+    kids: 'Kids'
+  };
+
+  const diffs = [];
+  for (const [k, label] of Object.entries(fields)) {
+    if (oldObj[k] !== undefined && newObj[k] !== undefined) {
+      let o = oldObj[k];
+      let n = newObj[k];
+      if (String(o || '').trim() !== String(n || '').trim()) {
+        let formattedOld = o !== null && o !== undefined && o !== '' ? o : 'None';
+        let formattedNew = n !== null && n !== undefined && n !== '' ? n : 'None';
+        if (['package_amount', 'paid_amount', 'pending_amount', 'profit'].includes(k)) {
+          formattedOld = `AED ${parseFloat(formattedOld || 0).toFixed(2)}`;
+          formattedNew = `AED ${parseFloat(formattedNew || 0).toFixed(2)}`;
+        }
+        diffs.push(`${label}: "${formattedOld}" → "${formattedNew}"`);
+      }
+    }
+  }
+  return diffs.join(', ');
 };
 
 const updateLead = async (req, res) => {
@@ -191,19 +267,46 @@ const updateLead = async (req, res) => {
       const pkgAmt = validated.package_amount !== undefined ? parseFloat(validated.package_amount || 0) : parseFloat(lead.package_amount || 0);
       const paidAmt = validated.paid_amount !== undefined ? parseFloat(validated.paid_amount || 0) : parseFloat(lead.paid_amount || 0);
       validated.pending_amount = Math.max(0, pkgAmt - paidAmt);
+
+      const associatedCase = await Case.findOne({ where: { lead_id: lead.id } });
+      if (associatedCase) {
+        const cp = await CasePackage.findOne({
+          where: { case_id: associatedCase.id },
+          order: [['assigned_at', 'DESC']]
+        });
+        if (cp) {
+          await cp.update({ package_amount: pkgAmt });
+        } else {
+          let defaultPkg = await Package.findOne();
+          if (defaultPkg) {
+            await CasePackage.create({
+              case_id: associatedCase.id,
+              package_id: defaultPkg.id,
+              package_amount: pkgAmt
+            });
+          }
+        }
+      }
     }
 
-    const oldValue = JSON.stringify(lead);
+    const oldLeadJson = lead.toJSON ? lead.toJSON() : lead;
     await lead.update(validated);
+    const newLeadJson = lead.toJSON ? lead.toJSON() : lead;
+
+    const diffText = formatLeadDiffs(oldLeadJson, newLeadJson);
+    const roleLabel = getRoleLabel(req.user);
+    const description = diffText
+      ? `${roleLabel} ${req.user.name} updated Lead ${lead.lead_number}: ${diffText}`
+      : `${roleLabel} ${req.user.name} updated Lead ${lead.lead_number}`;
 
     await ActivityLog.create({
       user_id: req.user.id,
       entity_type: 'Lead',
       entity_id: lead.id,
       action: 'UPDATE_LEAD',
-      old_value: oldValue,
-      new_value: JSON.stringify(lead),
-      description: `Lead ${lead.lead_number} updated by ${req.user.name}`,
+      old_value: JSON.stringify(oldLeadJson),
+      new_value: JSON.stringify(newLeadJson),
+      description,
       ip_address: req.ip
     });
 
@@ -261,25 +364,18 @@ const updateLeadStatus = async (req, res) => {
     const oldStatus = lead.status;
     await lead.update({ status });
 
-    await LeadInteraction.create({
-      lead_id: lead.id,
-      user_id: req.user.id,
-      interaction_type: 'STATUS_UPDATE',
-      interaction_date: new Date(),
-      notes: `Status updated from ${oldStatus} to ${status}`,
-      old_status: oldStatus,
-      new_status: status
-    });
+    const roleLabel = getRoleLabel(req.user);
+    const desc = `${roleLabel} ${req.user.name} changed lead status from ${oldStatus} → ${status}`;
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Lead',
-      entity_id: lead.id,
+    await logAudit({
+      req,
+      entityType: 'Lead',
+      entityId: lead.id,
+      leadId: lead.id,
       action: 'STATUS_UPDATE',
-      old_value: oldStatus,
-      new_value: status,
-      description: `Lead ${lead.lead_number} status updated from ${oldStatus} to ${status}`,
-      ip_address: req.ip
+      oldValue: oldStatus,
+      newValue: status,
+      description: desc
     });
 
     return res.status(200).json({ success: true, data: lead });
@@ -312,22 +408,13 @@ const exportLeads = async (req, res) => {
 
     const leads = await Lead.findAll({ where, order: [['created_at', 'DESC']] });
 
-    let csv = '\ufeffLead Number,Client Name,Mobile,Email,Country,City,Status,Source,Estimated Budget,Created At\n';
+    let csv = 'Lead Number,Client Name,Mobile,Email,Country,City,Lead Source,Service Required,Package Amount,Paid Amount,Pending Amount,Status\n';
     leads.forEach(l => {
-      const budget = l.estimated_budget ? parseFloat(l.estimated_budget).toFixed(2) : '0.00';
-      const clientName = (l.client_name || l.clientName || '').replace(/"/g, '""');
-      const mobile = l.mobile || '';
-      const email = (l.email || '').replace(/"/g, '""');
-      const countryVal = (l.country || '').replace(/"/g, '""');
-      const cityVal = (l.city || '').replace(/"/g, '""');
-      const leadSource = (l.lead_source || l.leadSource || '').replace(/"/g, '""');
-      const createdAtDate = l.created_at || l.createdAt || new Date();
-
-      csv += `"${l.lead_number}","${clientName}","${mobile}","${email}","${countryVal}","${cityVal}","${l.status}","${leadSource}",${budget},"${createdAtDate.toISOString()}"\n`;
+      csv += `"${l.lead_number}","${l.client_name}","${l.mobile}","${l.email || ''}","${l.country || ''}","${l.city || ''}","${l.lead_source || ''}","${l.service_required || ''}",${l.package_amount},${l.paid_amount},${l.pending_amount},"${l.status}"\n`;
     });
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename=leads.csv');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=leads_${Date.now()}.csv`);
     return res.status(200).send(csv);
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to export leads', errors: [error.message] });
@@ -349,7 +436,43 @@ const getLeadInteractions = async (req, res) => {
       include: [{ model: User, attributes: ['id', 'name'] }],
       order: [['interaction_date', 'DESC']]
     });
-    return res.status(200).json({ success: true, data: interactions });
+
+    const activityLogs = await ActivityLog.findAll({
+      where: { entity_type: 'Lead', entity_id: id },
+      include: [{ model: User, attributes: ['id', 'name'] }],
+      order: [['created_at', 'DESC']]
+    });
+
+    const mappedLogs = activityLogs.map(log => {
+      let notesText = log.description;
+      if (log.old_value && log.new_value) {
+        try {
+          const oldO = JSON.parse(log.old_value);
+          const newO = JSON.parse(log.new_value);
+          const diffStr = formatLeadDiffs(oldO, newO);
+          if (diffStr && (!notesText || !notesText.includes(':'))) {
+            notesText = `${notesText}: ${diffStr}`;
+          }
+        } catch (e) {}
+      }
+
+      return {
+        id: `act-${log.id}`,
+        interaction_type: log.action || 'SYSTEM',
+        notes: notesText,
+        interaction_date: log.created_at || log.createdAt,
+        createdAt: log.created_at || log.createdAt,
+        created_at: log.created_at || log.createdAt,
+        User: log.User
+      };
+    });
+
+    const combined = [
+      ...interactions.map(i => (i.toJSON ? i.toJSON() : i)),
+      ...mappedLogs
+    ].sort((a, b) => new Date(b.interaction_date || b.createdAt) - new Date(a.interaction_date || a.createdAt));
+
+    return res.status(200).json({ success: true, data: combined });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve interactions', errors: [error.message] });
   }

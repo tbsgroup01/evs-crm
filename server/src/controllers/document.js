@@ -2,6 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { Document, Case, DocumentType, ActivityLog, Notification, User, Lead } = require('../models');
 const { createNotification } = require('../services/notificationService');
+const { logAudit } = require('../utils/auditLogger');
+
+const getRoleLabel = (user) => {
+  const name = user?.role?.name || user?.role || 'User';
+  if (name === 'ADMIN') return 'Admin';
+  if (name === 'LEAD_MANAGER' || name === 'MANAGER') return 'Manager';
+  if (name === 'CASE_MANAGER') return 'Case Manager';
+  if (name === 'COUNSELOR') return 'Counselor';
+  return name;
+};
 
 const uploadDocument = async (req, res) => {
   try {
@@ -42,13 +52,14 @@ const uploadDocument = async (req, res) => {
       status: 'UPLOADED'
     });
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Case',
-      entity_id: case_id,
+    const roleLabel = getRoleLabel(req.user);
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: case_id,
+      leadId: singleCase.lead_id,
       action: 'DOCUMENT_UPLOADED',
-      description: `Document ${req.file.originalname} uploaded by ${req.user.name} for case ${singleCase.case_number}`,
-      ip_address: req.ip
+      description: `${roleLabel} ${req.user.name} uploaded document "${req.file.originalname}" for Case ${singleCase.case_number}`
     });
 
     return res.status(201).json({ success: true, data: document });
@@ -90,7 +101,8 @@ const getDocuments = async (req, res) => {
       include: [
         caseInclude,
         { model: DocumentType, attributes: ['id', 'name', 'is_required'] },
-        { model: User, as: 'uploader', attributes: ['id', 'name'] }
+        { model: User, as: 'uploader', attributes: ['id', 'name'] },
+        { model: User, as: 'verifier', attributes: ['id', 'name'] }
       ],
       order: [['created_at', 'DESC']]
     });
@@ -139,15 +151,15 @@ const updateDocumentStatus = async (req, res) => {
     const { id } = req.params;
     const { status, rejection_reason } = req.body;
 
-    if (!['VERIFIED', 'REJECTED'].includes(status)) {
+    if (!['VERIFIED', 'REJECTED', 'UPLOADED'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid verification status' });
     }
 
     const document = await Document.findByPk(id, { include: [Case] });
     if (!document) return res.status(404).json({ success: false, message: 'Document not found' });
 
-    if (req.user.role.name === 'CASE_MANAGER' && document.Case.case_manager_id !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    if (req.user.role.name !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Access denied. Only Admin can verify or reject documents' });
     }
 
     const oldStatus = document.status;
@@ -158,13 +170,20 @@ const updateDocumentStatus = async (req, res) => {
       rejection_reason: status === 'REJECTED' ? rejection_reason : null
     });
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Case',
-      entity_id: document.case_id,
+    const roleLabel = getRoleLabel(req.user);
+    const desc = status === 'VERIFIED'
+      ? `${roleLabel} ${req.user.name} verified document "${document.file_name}"`
+      : `${roleLabel} ${req.user.name} rejected document "${document.file_name}" (Reason: ${rejection_reason || 'N/A'})`;
+
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: document.case_id,
+      leadId: document.Case?.lead_id,
       action: status === 'VERIFIED' ? 'DOCUMENT_VERIFIED' : 'DOCUMENT_REJECTED',
-      description: `Document ${document.file_name} status updated from ${oldStatus} to ${status}. Reason: ${rejection_reason || 'N/A'}`,
-      ip_address: req.ip
+      oldValue: oldStatus,
+      newValue: status,
+      description: desc
     });
 
     await createNotification({
@@ -210,13 +229,14 @@ const replaceDocument = async (req, res) => {
       rejection_reason: null
     });
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Case',
-      entity_id: document.case_id,
+    const roleLabel = getRoleLabel(req.user);
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: document.case_id,
+      leadId: document.Case?.lead_id,
       action: 'DOCUMENT_REPLACED',
-      description: `Document ${document.file_name} replaced with ${req.file.originalname}`,
-      ip_address: req.ip
+      description: `${roleLabel} ${req.user.name} replaced document "${document.file_name}" with "${req.file.originalname}"`
     });
 
     return res.status(200).json({ success: true, data: document });

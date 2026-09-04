@@ -91,15 +91,22 @@ export const DocumentList = () => {
       });
   };
 
-  const handleViewFile = (id, fileName) => {
-    axios.get(`/api/v1/documents/${id}/download`, { responseType: 'blob' })
-      .then(res => {
-        const url = window.URL.createObjectURL(new Blob([res.data]));
-        window.open(url, '_blank');
-      })
-      .catch(() => {
-        alert('Failed to open file preview');
-      });
+  const handleViewFile = (id) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      window.open(`/api/v1/documents/${id}/download?token=${token}`, '_blank');
+    } else {
+      axios.get(`/api/v1/documents/${id}/download`, { responseType: 'blob' })
+        .then(res => {
+          const blobType = res.headers['content-type'] || 'image/png';
+          const blob = new Blob([res.data], { type: blobType });
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        })
+        .catch(() => {
+          alert('Failed to open file preview');
+        });
+    }
   };
 
   const filteredDocs = docs.filter(d => {
@@ -295,7 +302,7 @@ export const DocumentList = () => {
             <p className="text-sm text-slate-400 mt-1">Upload a document or adjust your search filters.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto w-full border border-slate-100 rounded-xl">
+          <div className="overflow-x-auto w-full border border-slate-100 rounded-xl min-h-[220px] pb-10">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="bg-blue-50/50 text-blue-900 font-bold uppercase text-xs tracking-wider border-b border-blue-100">
@@ -381,9 +388,9 @@ export const DocumentList = () => {
                       {/* UPLOADED BY */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2.5">
-                          <div className="h-7 w-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
+                          {/* <div className="h-7 w-7 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
                             {uploaderLetter}
-                          </div>
+                          </div> */}
                           <div>
                             <span className="font-bold text-slate-800 text-xs block leading-tight">{uploaderName}</span>
                             <span className="text-slate-400 text-[10px] font-medium block mt-0.5">
@@ -396,18 +403,28 @@ export const DocumentList = () => {
                       {/* STATUS */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {statusPill}
+                        {doc.verifier?.name && (
+                          <span className="text-[10px] text-slate-500 font-medium block mt-1">
+                            {status === 'VERIFIED' ? 'Verified' : 'Rejected'} by <span className="font-bold text-slate-700">{doc.verifier.name}</span>
+                          </span>
+                        )}
+                        {doc.rejection_reason && (
+                          <span className="text-[10px] text-red-600 font-medium block italic mt-0.5">
+                            Reason: {doc.rejection_reason}
+                          </span>
+                        )}
                       </td>
 
                       {/* ACTIONS */}
                       <td className="px-6 py-4 whitespace-nowrap text-right relative">
                         <div className="flex items-center justify-end gap-2">
-                          <button
+                          {/* <button
                             onClick={() => handleViewFile(doc.id, doc.file_name)}
                             className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
                             title="Preview File"
                           >
                             <Eye className="h-4 w-4" />
-                          </button>
+                          </button> */}
                           <button
                             onClick={() => handleDownload(doc.id, doc.file_name)}
                             className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
@@ -416,40 +433,42 @@ export const DocumentList = () => {
                             <Download className="h-4 w-4" />
                           </button>
 
-                          {/* Options Menu Button */}
-                          <div className="relative">
-                            <button
-                              onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
-                              className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
-                              title="More Options"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </button>
+                          {/* Options Menu Button (Admin Only) */}
+                          {(user?.role?.name || user?.role) === 'ADMIN' && (
+                            <div className="relative">
+                              <button
+                                onClick={() => setActiveMenuId(activeMenuId === doc.id ? null : doc.id)}
+                                className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+                                title="More Options"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
 
-                            {/* Dropdown Menu */}
-                            {activeMenuId === doc.id && (
-                              <div className="absolute right-0 top-10 z-30 w-36 bg-white rounded-xl shadow-xl border border-slate-100 py-1 text-left">
-                                <button
-                                  onClick={() => handleVerify(doc.id, 'VERIFIED')}
-                                  className="w-full px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
-                                >
-                                  <Check className="h-3.5 w-3.5" /> Mark Verified
-                                </button>
-                                <button
-                                  onClick={() => handleVerify(doc.id, 'REJECTED')}
-                                  className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                >
-                                  <X className="h-3.5 w-3.5" /> Mark Rejected
-                                </button>
-                                <button
-                                  onClick={() => handleVerify(doc.id, 'UPLOADED')}
-                                  className="w-full px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t border-slate-100"
-                                >
-                                  Mark Uploaded
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                              {/* Dropdown Menu */}
+                              {activeMenuId === doc.id && (
+                                <div className={`absolute right-0 ${idx >= filteredDocs.length - 2 || filteredDocs.length <= 3 ? 'bottom-10' : 'top-10'} z-50 w-36 bg-white rounded-xl shadow-xl border border-slate-100 py-1 text-left`}>
+                                  <button
+                                    onClick={() => handleVerify(doc.id, 'VERIFIED')}
+                                    className="w-full px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
+                                  >
+                                    <Check className="h-3.5 w-3.5" /> Mark Verified
+                                  </button>
+                                  <button
+                                    onClick={() => handleVerify(doc.id, 'REJECTED')}
+                                    className="w-full px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                  >
+                                    <X className="h-3.5 w-3.5" /> Mark Rejected
+                                  </button>
+                                  <button
+                                    onClick={() => handleVerify(doc.id, 'UPLOADED')}
+                                    className="w-full px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t border-slate-100"
+                                  >
+                                    Mark Uploaded
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

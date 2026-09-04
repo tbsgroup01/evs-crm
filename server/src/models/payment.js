@@ -46,6 +46,11 @@ module.exports = (sequelize) => {
     receipt_path: {
       type: DataTypes.STRING,
       allowNull: true
+    },
+    status: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'PENDING'
     }
   }, {
     sequelize,

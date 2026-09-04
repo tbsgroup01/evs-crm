@@ -277,10 +277,10 @@ export const ActivityLogsList = () => {
         <DataTable
           headers={[
             'ACTIVITY',
-            'OPERATOR',
+            'OPERATOR & ROLE',
             'ACTION TYPE',
-            'DESCRIPTION',
-            'TIME',
+            'CHANGES / DESCRIPTION',
+            'DATE & TIME',
             'STATUS'
           ]}
           rows={paginatedLogs.map(log => {
@@ -290,8 +290,17 @@ export const ActivityLogsList = () => {
             const category = getActionCategory(log.action, log.description);
             const dateObj = new Date(log.created_at || log.createdAt);
             
-            const dateStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+            const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            const userRoleName = log.User?.role?.name || log.User?.role;
+            let roleBadgeLabel = 'User';
+            if (userRoleName === 'ADMIN') roleBadgeLabel = 'Admin';
+            else if (userRoleName === 'LEAD_MANAGER' || userRoleName === 'MANAGER') roleBadgeLabel = 'Manager';
+            else if (userRoleName === 'CASE_MANAGER') roleBadgeLabel = 'Case Manager';
+            else if (userRoleName === 'COUNSELOR') roleBadgeLabel = 'Counselor';
+
+            const isSimpleDiff = log.old_value && log.new_value && !log.old_value.startsWith('{') && !log.old_value.startsWith('[');
 
             return [
               <div className="flex items-center gap-3">
@@ -303,13 +312,27 @@ export const ActivityLogsList = () => {
                   <div className="text-[10px] text-gray-400 font-semibold">{category.sub}</div>
                 </div>
               </div>,
-              <span className="font-semibold text-slate-700 text-sm">{log.User?.name || 'System'}</span>,
+              <div>
+                <div className="font-semibold text-slate-800 text-sm">{log.User?.name || 'System'}</div>
+                <span className="inline-block mt-0.5 px-2 py-0.2 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                  {roleBadgeLabel}
+                </span>
+              </div>,
               <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
                 isFailed ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
               }`}>
                 {log.action}
               </span>,
-              <span className="text-xs text-gray-500 block max-w-xs truncate" title={log.description}>{log.description}</span>,
+              <div className="max-w-md space-y-1">
+                <div className="text-xs text-gray-800 font-medium leading-relaxed" title={log.description}>{log.description}</div>
+                {isSimpleDiff && (
+                  <div className="inline-flex items-center gap-1.5 text-[11px] bg-amber-50 text-amber-900 border border-amber-200/60 px-2.5 py-0.5 rounded-md font-mono">
+                    <span className="line-through text-amber-700/80">{log.old_value}</span>
+                    <span className="text-amber-500 font-bold">→</span>
+                    <span className="font-bold text-amber-900">{log.new_value}</span>
+                  </div>
+                )}
+              </div>,
               <div>
                 <div className="font-semibold text-slate-800 text-xs">{dateStr}</div>
                 <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{timeStr}</div>

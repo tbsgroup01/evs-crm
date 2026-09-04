@@ -16,6 +16,8 @@ const authenticate = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.headers.cookie) {
       token = getCookieValue(req.headers.cookie, 'access_token');
+    } else if (req.query && req.query.token) {
+      token = req.query.token;
     }
 
     if (!token) {

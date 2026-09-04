@@ -443,11 +443,12 @@ export const LeadDetail = () => {
   const [convKids, setConvKids] = useState(0);
   const [convPkgAmount, setConvPkgAmount] = useState('');
   const [convPaidAmount, setConvPaidAmount] = useState('');
+  const [convNewPaymentAmount, setConvNewPaymentAmount] = useState('');
   const [convPaymentDate, setConvPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [convNotes, setConvNotes] = useState('');
   const [convProfit, setConvProfit] = useState('');
 
-  const [visibleHistory, setVisibleHistory] = useState(5);
+  const [showAllLogs, setShowAllLogs] = useState(false);
   const navigate = useNavigate();
 
   const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
@@ -457,7 +458,15 @@ export const LeadDetail = () => {
   }, [id]);
 
   const fetchLeadDetails = () => {
-    axios.get(`/api/v1/leads/${id}`).then(res => setLead(res.data.data));
+    axios.get(`/api/v1/leads/${id}`).then(res => {
+      const data = res.data.data;
+      if (data) {
+        data.package_amount = data.package_amount !== null && data.package_amount !== undefined ? parseFloat(data.package_amount) : 0;
+        data.paid_amount = data.paid_amount !== null && data.paid_amount !== undefined ? parseFloat(data.paid_amount) : 0;
+        data.pending_amount = Math.max(0, data.package_amount - data.paid_amount);
+      }
+      setLead(data);
+    });
     axios.get(`/api/v1/leads/${id}/interactions`).then(res => setInteractions(res.data.data || []));
   };
 
@@ -486,28 +495,35 @@ export const LeadDetail = () => {
   };
 
   const openConvertModal = () => {
+    const pkg = lead?.package_amount !== undefined && lead?.package_amount !== null ? parseFloat(lead.package_amount) : 0;
+    const paid = lead?.paid_amount !== undefined && lead?.paid_amount !== null ? parseFloat(lead.paid_amount) : 0;
+
     setConvCaseNumber(`FILE-${1000 + parseInt(id || 1)}`);
-    setConvNationality(lead.nationality || lead.country || '');
-    setConvService(lead.service_required || '');
-    setConvAdults(lead.adults || 1);
-    setConvKids(lead.kids || 0);
-    setConvPkgAmount(lead.package_amount || '');
-    setConvPaidAmount(lead.paid_amount || '');
-    setConvPaymentDate(lead.payment_date || new Date().toISOString().split('T')[0]);
-    setConvNotes(lead.notes || '');
-    setConvProfit(lead.profit || '');
+    setConvNationality(lead?.nationality || lead?.country || '');
+    setConvService(lead?.service_required || '');
+    setConvAdults(lead?.adults !== undefined && lead?.adults !== null ? lead.adults : 1);
+    setConvKids(lead?.kids !== undefined && lead?.kids !== null ? lead.kids : 0);
+    setConvPkgAmount(pkg);
+    setConvPaidAmount(paid);
+    setConvNewPaymentAmount('');
+    setConvPaymentDate(lead?.payment_date || new Date().toISOString().split('T')[0]);
+    setConvNotes(lead?.notes || '');
+    setConvProfit(lead?.profit !== undefined && lead?.profit !== null ? lead.profit : '');
     setConvertOpen(true);
   };
 
   const handleConfirmConvert = () => {
+    const pkg = convPkgAmount !== '' && convPkgAmount !== null ? parseFloat(convPkgAmount) : (lead?.package_amount ? parseFloat(lead.package_amount) : 0);
+    const newPaid = convNewPaymentAmount !== '' && convNewPaymentAmount !== null ? parseFloat(convNewPaymentAmount) : 0;
+
     const payload = {
       case_number: convCaseNumber,
       nationality: convNationality,
       service_required: convService,
       adults: parseInt(convAdults || 0),
       kids: parseInt(convKids || 0),
-      package_amount: convPkgAmount ? parseFloat(convPkgAmount) : null,
-      paid_amount: convPaidAmount ? parseFloat(convPaidAmount) : null,
+      package_amount: pkg,
+      new_payment_amount: newPaid,
       payment_date: convPaymentDate,
       notes: convNotes
     };
@@ -529,7 +545,10 @@ export const LeadDetail = () => {
     if (t.includes('NOTE')) return { color: 'text-amber-600 bg-amber-50', icon: 'MessageSquare', label: 'Note Added' };
     if (t.includes('FOLLOW')) return { color: 'text-blue-600 bg-blue-50', icon: 'Calendar', label: 'Follow-up Scheduled' };
     if (t.includes('CONVERT')) return { color: 'text-purple-600 bg-purple-50', icon: 'Check', label: 'Lead Converted' };
-    return { color: 'text-slate-600 bg-slate-50', icon: 'Activity', label: type };
+    if (t.includes('CREATE')) return { color: 'text-emerald-600 bg-emerald-50', icon: 'Check', label: 'Lead Created' };
+    if (t.includes('ASSIGN')) return { color: 'text-indigo-600 bg-indigo-50', icon: 'Activity', label: 'Counselor Assigned' };
+    if (t.includes('UPDATE')) return { color: 'text-sky-600 bg-sky-50', icon: 'Activity', label: 'Lead Updated' };
+    return { color: 'text-slate-600 bg-slate-50', icon: 'Activity', label: (type || 'Activity').replace(/_/g, ' ') };
   };
 
   const resolveIntIcon = (iconName) => {
@@ -613,7 +632,7 @@ export const LeadDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-gray-100 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 pt-6 border-t border-gray-100 w-full">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <Phone className="h-5 w-5" />
@@ -653,136 +672,144 @@ export const LeadDetail = () => {
               <p className="text-sm text-slate-800 font-bold mt-0.5">{totalPax} Total ({lead.adults || 1} A, {lead.kids || 0} K)</p>
             </div>
           </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Counselor</p>
+              <p className="text-sm text-slate-800 font-bold mt-0.5">{lead.counselor?.name || 'Unassigned'}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card title="Lead Details & Financial Deal Overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-              <div className="flex items-start gap-3">
-                <div className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Service Requested / Category</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm">{lead.service_required || 'N/A'}</p>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <Card title="Lead Details & Financial Deal Overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FileText className="h-5 w-5" />
               </div>
-
-              <div className="flex items-start gap-3">
-                <div className="h-9 w-9 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <DollarSign className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Package Amount</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm">AED {pkgAmt.toFixed(2)}</p>
-                </div>
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Service Requested / Category</p>
+                <p className="text-slate-800 font-bold mt-1 text-sm">{lead.service_required || 'N/A'}</p>
               </div>
+            </div>
 
-              <div className="flex items-start gap-3">
-                <div className="h-9 w-9 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Paid Amount & Payment Date</p>
-                  <p className="text-slate-800 font-bold mt-1 text-sm">
-                    AED {paidAmt.toFixed(2)} {lead.payment_date ? `(Paid on ${lead.payment_date})` : ''}
-                  </p>
-                </div>
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <DollarSign className="h-5 w-5" />
               </div>
-
-              <div className="flex items-start gap-3">
-                <div className="h-9 w-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pending Balance</p>
-                  <p className={`font-bold mt-1 text-sm ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                    AED {pendAmt.toFixed(2)}
-                  </p>
-                </div>
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Package Amount</p>
+                <p className="text-slate-800 font-bold mt-1 text-sm">AED {pkgAmt.toFixed(2)}</p>
               </div>
+            </div>
 
-              {canManageProfit && (
-                <div className="flex items-start gap-3 md:col-span-2 bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
-                  <div className="h-9 w-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center flex-shrink-0">
-                    <DollarSign className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Profit Margin (Admin & Manager Only)</p>
-                    <p className="text-emerald-950 font-extrabold mt-0.5 text-base">
-                      {lead.profit !== null && lead.profit !== undefined ? `AED ${parseFloat(lead.profit).toFixed(2)}` : 'Not set'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="md:col-span-2">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Notes & Special Instructions</p>
-                <p className="text-slate-800 font-medium mt-1 text-sm bg-slate-50 p-3 rounded-lg border border-gray-100">
-                  {lead.notes || lead.requirement_details || 'No additional notes logged.'}
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Check className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Paid Amount & Payment Date</p>
+                <p className="text-slate-800 font-bold mt-1 text-sm">
+                  AED {paidAmt.toFixed(2)} {lead.payment_date ? `(Paid on ${lead.payment_date})` : ''}
                 </p>
               </div>
             </div>
-          </Card>
 
-          <Card title="Activity & Interactions History">
-            {interactions.length === 0 ? (
-              <div className="text-center py-8 text-gray-500 text-sm">
-                <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                No logged interactions yet.
+            <div className="flex items-start gap-3">
+              <div className="h-9 w-9 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Calendar className="h-5 w-5" />
               </div>
-            ) : (
+              <div>
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pending Balance</p>
+                <p className={`font-bold mt-1 text-sm ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  AED {pendAmt.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {canManageProfit && (
+              <div className="flex items-start gap-3 md:col-span-2 bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+                <div className="h-9 w-9 bg-emerald-600 text-white rounded-lg flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Profit Margin (Admin & Manager Only)</p>
+                  <p className="text-emerald-950 font-extrabold mt-0.5 text-base">
+                    {lead.profit !== null && lead.profit !== undefined ? `AED ${parseFloat(lead.profit).toFixed(2)}` : 'Not set'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="md:col-span-2">
+              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Notes & Special Instructions</p>
+              <p className="text-slate-800 font-medium mt-1 text-sm bg-slate-50 p-3 rounded-lg border border-gray-100">
+                {lead.notes || lead.requirement_details || 'No additional notes logged.'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Activity & Interactions History">
+          {interactions.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-sm">
+              <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              No logged interactions yet.
+            </div>
+          ) : (
+            <div>
               <div className="relative pl-6 border-l border-slate-100 space-y-6 mt-2 ml-3">
-                {interactions.slice(0, visibleHistory).map((item) => {
+                {(showAllLogs ? interactions : interactions.slice(0, 5)).map((item) => {
                   const details = getInteractionDetails(item.interaction_type);
-                  const dateObj = new Date(item.interaction_date || item.createdAt);
+                  const rawDate = item.interaction_date || item.createdAt || item.created_at;
+                  let dateObj = rawDate ? new Date(rawDate) : new Date();
+                  if (isNaN(dateObj.getTime())) dateObj = new Date();
+
                   const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                   const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
                   return (
-                    <div key={item.id} className="relative flex items-start justify-between gap-4">
-                      <div className={`absolute -left-9 top-0.5 h-6 w-6 rounded-full flex items-center justify-center border-4 border-white ${details.color}`}>
+                    <div key={item.id} className="relative flex items-start justify-between gap-4 py-1">
+                      <div className={`absolute -left-[38px] top-0.5 h-7 w-7 rounded-full flex items-center justify-center border-4 border-white shadow-sm ${details.color}`}>
                         {resolveIntIcon(details.icon)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-slate-800 text-xs">{details.label}</p>
-                          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-50 text-slate-500 uppercase">{item.interaction_type}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-extrabold text-slate-900 text-sm">{details.label}</p>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-100 text-slate-600 uppercase tracking-wider">{item.interaction_type}</span>
+                          {item.User?.name && (
+                            <span className="text-xs text-slate-500 font-medium">• By: <strong className="text-slate-800">{item.User.name}</strong></span>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{item.notes}</p>
+                        <p className="text-sm text-slate-700 font-medium mt-1.5 leading-relaxed">{item.notes}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-[10px] text-slate-700 font-semibold">{dStr}</p>
-                        <p className="text-[9px] text-gray-400 font-semibold mt-0.5">{tStr}</p>
+                        <p className="text-xs text-slate-800 font-bold">{dStr}</p>
+                        <p className="text-[11px] text-gray-500 font-semibold mt-0.5">{tStr}</p>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </Card>
-        </div>
 
-        <div className="space-y-6">
-          <Card title="Counselor & Status Info">
-            <div className="space-y-3.5 text-xs">
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-400 font-medium">Owner Counselor</span>
-                <span className="font-bold text-slate-800">{lead.counselor?.name || 'Unassigned'}</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-400 font-medium">Status</span>
-                <StatusBadge status={lead.status} />
-              </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-400 font-medium">Created On</span>
-                <span className="font-bold text-slate-700">{new Date(lead.created_at || lead.createdAt).toLocaleDateString()}</span>
-              </div>
+              {interactions.length > 5 && (
+                <div className="mt-4 pt-3 border-t border-slate-100 text-center">
+                  <button
+                    onClick={() => setShowAllLogs(!showAllLogs)}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                  >
+                    {showAllLogs ? 'Show Recent Logs (5)' : `Show All Logs (${interactions.length})`}
+                  </button>
+                </div>
+              )}
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
       </div>
 
       {/* CONVERT TO CASE MODAL */}
@@ -828,6 +855,19 @@ export const LeadDetail = () => {
             </div>
           </div>
 
+          {parseFloat(lead?.paid_amount || 0) > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-blue-900 block">Already Paid on Lead Creation</span>
+                <span className="text-[11px] text-blue-700 block">This initial token payment will be linked to the new Case ledger.</span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-extrabold text-blue-900 block">AED {parseFloat(lead.paid_amount).toFixed(2)}</span>
+                {lead.payment_date && <span className="text-[10px] text-blue-600 font-semibold block">Date: {lead.payment_date}</span>}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Total Package Amount (AED)</label>
@@ -836,16 +876,17 @@ export const LeadDetail = () => {
                 step="0.01"
                 value={convPkgAmount}
                 onChange={(e) => setConvPkgAmount(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white font-semibold"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Paid Amount (AED)</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">New Additional Payment (AED)</label>
               <input
                 type="number"
                 step="0.01"
-                value={convPaidAmount}
-                onChange={(e) => setConvPaidAmount(e.target.value)}
+                value={convNewPaymentAmount}
+                onChange={(e) => setConvNewPaymentAmount(e.target.value)}
+                placeholder="0.00 (Optional)"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
               />
             </div>
@@ -853,7 +894,7 @@ export const LeadDetail = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date (For New Payment)</label>
               <input
                 type="date"
                 value={convPaymentDate}
@@ -866,7 +907,7 @@ export const LeadDetail = () => {
               <input
                 type="number"
                 readOnly
-                value={Math.max(0, parseFloat(convPkgAmount || 0) - parseFloat(convPaidAmount || 0))}
+                value={Math.max(0, parseFloat(convPkgAmount || 0) - parseFloat(lead?.paid_amount || 0) - parseFloat(convNewPaymentAmount || 0)).toFixed(2)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold text-amber-700"
               />
             </div>
@@ -1010,7 +1051,24 @@ export const LeadForm = () => {
   };
 
   return (
-    <div className="mx-auto">
+    <div className="mx-auto space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+          <Link to="/leads" className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Leads
+          </Link>
+          <span className="text-gray-300">/</span>
+          <span className="text-slate-800">{id ? 'Edit Lead Profile' : 'Create Lead Profile'}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate(id ? `/leads/${id}` : '/leads')}
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 bg-white border border-gray-200 px-3.5 py-2 rounded-xl shadow-sm hover:bg-slate-50 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4 text-slate-500" /> Back
+        </button>
+      </div>
+
       <Card title={id ? 'Edit Lead Profile' : 'Create New Lead Profile'}>
         <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {errorMsg && (
@@ -1114,7 +1172,7 @@ export const LeadForm = () => {
           </div>
 
           <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <Button variant="secondary" onClick={() => navigate('/leads')}>Cancel</Button>
+            <Button variant="secondary" type="button" onClick={() => navigate(id ? `/leads/${id}` : '/leads')}>Cancel</Button>
             <Button type="submit">Save Profile</Button>
           </div>
         </form>

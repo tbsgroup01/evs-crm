@@ -1,4 +1,14 @@
-const { Package, CasePackage, Case, ActivityLog } = require('../models');
+const { Package, CasePackage, Case, ActivityLog, Lead } = require('../models');
+const { logAudit } = require('../utils/auditLogger');
+
+const getRoleLabel = (user) => {
+  const name = user?.role?.name || user?.role || 'User';
+  if (name === 'ADMIN') return 'Admin';
+  if (name === 'LEAD_MANAGER' || name === 'MANAGER') return 'Manager';
+  if (name === 'CASE_MANAGER') return 'Case Manager';
+  if (name === 'COUNSELOR') return 'Counselor';
+  return name;
+};
 
 const getPackages = async (req, res) => {
   try {
@@ -73,28 +83,52 @@ const updatePackageStatus = async (req, res) => {
 const assignCasePackage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { package_id } = req.body;
+    const { package_id, custom_amount } = req.body;
 
-    const singleCase = await Case.findByPk(id);
+    const singleCase = await Case.findByPk(id, { include: [Lead] });
     if (!singleCase) return res.status(404).json({ success: false, message: 'Case not found' });
+
+    const existingCp = await CasePackage.findOne({
+      where: { case_id: singleCase.id },
+      order: [['assigned_at', 'DESC']]
+    });
+
+    const oldAmount = existingCp ? parseFloat(existingCp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
 
     const pkg = await Package.findByPk(package_id);
     if (!pkg) return res.status(404).json({ success: false, message: 'Package template not found' });
 
+    const newAmount = custom_amount !== undefined && custom_amount !== null && custom_amount !== '' ? parseFloat(custom_amount) : parseFloat(pkg.amount);
+
     const cp = await CasePackage.create({
       case_id: singleCase.id,
       package_id: pkg.id,
-      package_amount: pkg.amount,
+      package_amount: newAmount,
       assigned_at: new Date()
     });
 
-    await ActivityLog.create({
-      user_id: req.user.id,
-      entity_type: 'Case',
-      entity_id: singleCase.id,
+    if (singleCase.Lead) {
+      const paid = parseFloat(singleCase.Lead.paid_amount || 0);
+      await singleCase.Lead.update({
+        package_amount: newAmount,
+        pending_amount: Math.max(0, newAmount - paid)
+      });
+    }
+
+    const roleLabel = getRoleLabel(req.user);
+    const oldFormatted = `AED ${oldAmount.toLocaleString()}`;
+    const newFormatted = `AED ${newAmount.toLocaleString()}`;
+    const desc = `${roleLabel} ${req.user.name} changed the Total Package from ${oldFormatted} → ${newFormatted} (${pkg.name})`;
+
+    await logAudit({
+      req,
+      entityType: 'Case',
+      entityId: singleCase.id,
+      leadId: singleCase.lead_id,
       action: 'PACKAGE_ASSIGNED',
-      description: `Package ${pkg.name} snapshot assigned at amount ${pkg.amount}`,
-      ip_address: req.ip
+      oldValue: oldFormatted,
+      newValue: newFormatted,
+      description: desc
     });
 
     return res.status(201).json({ success: true, data: cp });

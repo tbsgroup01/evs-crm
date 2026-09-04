@@ -37,7 +37,10 @@ const {
   getCasePayments,
   getCasePaymentSummary,
   addPayment,
-  downloadPaymentReceipt
+  approvePayment,
+  rejectPayment,
+  downloadPaymentReceipt,
+  bulkDeletePayments
 } = require('../controllers/payment');
 const { authenticate, authorize } = require('../middleware/auth');
 const upload = require('../config/storage');
@@ -76,8 +79,11 @@ router.post('/cases/:id/package', authenticate, authorize('ADMIN', 'LEAD_MANAGER
 router.get('/cases/:id/package', authenticate, getCasePackage);
 
 router.get('/payments', authenticate, getPayments);
+router.post('/payments/bulk-delete', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkDeletePayments);
 router.get('/cases/:id/payments', authenticate, getCasePayments);
 router.post('/cases/:id/payments', authenticate, upload.single('file'), addPayment);
+router.patch('/payments/:id/approve', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), approvePayment);
+router.patch('/payments/:id/reject', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), rejectPayment);
 router.get('/payments/:id/download', authenticate, downloadPaymentReceipt);
 router.get('/cases/:id/payment-summary', authenticate, getCasePaymentSummary);
 

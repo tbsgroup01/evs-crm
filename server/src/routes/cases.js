@@ -62,7 +62,7 @@ router.delete('/document-types/:id', authenticate, authorize('ADMIN'), deleteDoc
 router.get('/documents', authenticate, getDocuments);
 router.post('/documents/upload', authenticate, upload.single('file'), uploadDocument);
 router.get('/documents/:id/download', authenticate, downloadDocument);
-router.patch('/documents/:id/status', authenticate, updateDocumentStatus);
+router.patch('/documents/:id/status', authenticate, authorize('ADMIN'), updateDocumentStatus);
 router.post('/documents/:id/replace', authenticate, upload.single('file'), replaceDocument);
 router.delete('/documents/:id', authenticate, deleteDocument);
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Search, Download, Filter, Upload, Plus, DollarSign, Calendar, Users, CreditCard, FileText, CheckCircle, Clock, X, ChevronRight, AlertCircle } from 'lucide-react';
+import { Search, Download, Filter, Upload, Plus, DollarSign, Calendar, Users, CreditCard, FileText, CheckCircle, Clock, X, ChevronRight, AlertCircle, Trash2 } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
@@ -13,6 +13,9 @@ export const PaymentsList = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [methodFilter, setMethodFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+
+  const userRole = user?.role?.name || user?.role;
+  const canManage = ['ADMIN', 'LEAD_MANAGER'].includes(userRole);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -40,6 +43,21 @@ export const PaymentsList = () => {
 
   const fetchPayments = () => {
     axios.get('/api/v1/payments').then(res => setPayments(res.data.data || []));
+  };
+
+  const handleBulkDelete = () => {
+    if (!selectedIds.length) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedIds.length} selected payment entry/entries?`)) return;
+
+    axios.post('/api/v1/payments/bulk-delete', { payment_ids: selectedIds })
+      .then(res => {
+        setSelectedIds([]);
+        fetchPayments();
+        if (selectedCase) openCaseDrawer(selectedCase);
+      })
+      .catch(err => {
+        alert(err.response?.data?.message || 'Failed to delete payment records');
+      });
   };
 
   const openCaseDrawer = (caseObj) => {
@@ -110,6 +128,26 @@ export const PaymentsList = () => {
       });
   };
 
+  const handleApprovePayment = (paymentId) => {
+    if (!window.confirm('Are you sure you want to approve & confirm this payment entry?')) return;
+    axios.patch(`/api/v1/payments/${paymentId}/approve`).then(() => {
+      fetchPayments();
+      if (selectedCase) openCaseDrawer(selectedCase);
+    }).catch(err => {
+      alert(err.response?.data?.message || 'Failed to approve payment');
+    });
+  };
+
+  const handleRejectPayment = (paymentId) => {
+    if (!window.confirm('Are you sure you want to reject this payment entry?')) return;
+    axios.patch(`/api/v1/payments/${paymentId}/reject`).then(() => {
+      fetchPayments();
+      if (selectedCase) openCaseDrawer(selectedCase);
+    }).catch(err => {
+      alert(err.response?.data?.message || 'Failed to reject payment');
+    });
+  };
+
   const handleExportCSV = () => {
     let csv = '\ufeffFile ID,Lead Number,Client Name,Mobile,Service Category,Package Amount,Paid Entry Amount,Pending Balance,Payment Method,Transaction ID,Recorded By,Date\n';
     filteredPayments.forEach(p => {
@@ -174,15 +212,19 @@ export const PaymentsList = () => {
 
     let statusMatch = true;
     if (statusFilter) {
-      const pkgAmt = parseFloat(p.Case?.Lead?.package_amount || 0);
-      const paidAmt = parseFloat(p.Case?.Lead?.paid_amount || 0);
-      const pendAmt = p.Case?.Lead?.pending_amount !== null && p.Case?.Lead?.pending_amount !== undefined
-        ? parseFloat(p.Case?.Lead?.pending_amount)
-        : Math.max(0, pkgAmt - paidAmt);
+      if (statusFilter === 'PENDING_APPROVAL' || statusFilter === 'PENDING') statusMatch = p.status === 'PENDING';
+      else if (statusFilter === 'APPROVED') statusMatch = p.status === 'APPROVED';
+      else if (statusFilter === 'REJECTED') statusMatch = p.status === 'REJECTED';
+      else {
+        const pkgAmt = parseFloat(p.Case?.Lead?.package_amount || 0);
+        const paidAmt = parseFloat(p.Case?.Lead?.paid_amount || 0);
+        const pendAmt = p.Case?.Lead?.pending_amount !== null && p.Case?.Lead?.pending_amount !== undefined
+          ? parseFloat(p.Case?.Lead?.pending_amount)
+          : Math.max(0, pkgAmt - paidAmt);
 
-      if (statusFilter === 'FULLY_PAID') statusMatch = pendAmt <= 0 && pkgAmt > 0;
-      if (statusFilter === 'PARTIAL') statusMatch = pendAmt > 0 && paidAmt > 0;
-      if (statusFilter === 'PENDING') statusMatch = paidAmt === 0;
+        if (statusFilter === 'FULLY_PAID') statusMatch = pendAmt <= 0 && pkgAmt > 0;
+        if (statusFilter === 'PARTIAL') statusMatch = pendAmt > 0 && paidAmt > 0;
+      }
     }
 
     return matchesSearch && methodMatch && statusMatch;
@@ -192,12 +234,14 @@ export const PaymentsList = () => {
   const paginatedPayments = filteredPayments.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const totalPaymentsCount = filteredPayments.length;
-  const totalAmountCollected = filteredPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const totalAmountCollected = filteredPayments
+    .filter(p => p.status === 'APPROVED')
+    .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
   const thisMonthAmount = filteredPayments
     .filter(p => {
       const d = new Date(p.payment_date);
-      return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
+      return p.status === 'APPROVED' && d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
     })
     .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
@@ -227,9 +271,20 @@ export const PaymentsList = () => {
           <h1 className="text-3xl font-bold text-gray-900">Payments Ledger & Payment Tracking</h1>
           <p className="text-sm text-gray-500 mt-1">Complete financial tracking from lead entry to case settlement</p>
         </div>
-        <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
-          <Download className="h-4 w-4" /> Export CSV Report
-        </button>
+        <div className="flex items-center gap-3">
+          {canManage && selectedIds.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete Selected ({selectedIds.length})</span>
+            </button>
+          )}
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+            <Download className="h-4 w-4" /> Export CSV Report
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -245,7 +300,7 @@ export const PaymentsList = () => {
 
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Total Collected</span>
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Approved Collected</span>
             <span className="text-2xl font-bold text-emerald-600 mt-1 block">AED {totalAmountCollected.toFixed(2)}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -255,7 +310,7 @@ export const PaymentsList = () => {
 
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">This Month Collected</span>
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">This Month Approved</span>
             <span className="text-2xl font-bold text-purple-600 mt-1 block">AED {thisMonthAmount.toFixed(2)}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
@@ -312,10 +367,12 @@ export const PaymentsList = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full md:w-48 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white text-gray-700 focus:outline-none"
           >
-            <option value="">All Payment Statuses</option>
-            <option value="FULLY_PAID">FULLY PAID</option>
-            <option value="PARTIAL">PARTIALLY PAID</option>
-            <option value="PENDING">PENDING BALANCE</option>
+            <option value="">All Approval Statuses</option>
+            <option value="PENDING_APPROVAL">PENDING APPROVAL (RED)</option>
+            <option value="APPROVED">CONFIRMED / APPROVED (GREEN)</option>
+            <option value="REJECTED">REJECTED</option>
+            <option value="FULLY_PAID">CASE FULLY PAID</option>
+            <option value="PARTIAL">CASE PARTIALLY PAID</option>
           </select>
 
           <button onClick={handleResetFilters} className="px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-red-500 bg-white hover:bg-red-50 transition-colors">
@@ -347,11 +404,12 @@ export const PaymentsList = () => {
             sortHeader('CLIENT NAME & CONTACT'),
             sortHeader('SERVICE CATEGORY'),
             sortHeader('PACKAGE DEAL'),
-            sortHeader('PAID ENTRY AMOUNT'),
+            sortHeader('ENTRY AMOUNT'),
             sortHeader('PENDING BALANCE'),
-            sortHeader('METHOD & TX ID'),
+            sortHeader('PAYMENT METHOD'),
             sortHeader('RECORDED BY'),
-            sortHeader('DATE & STATUS')
+            sortHeader('DATE & APPROVAL STATUS'),
+            'ACTIONS'
           ]}
           rows={paginatedPayments.map(p => {
             const lead = p.Case?.Lead;
@@ -361,24 +419,29 @@ export const PaymentsList = () => {
               ? parseFloat(lead.pending_amount)
               : Math.max(0, pkgAmt - totalPaid);
 
-            let statusBadge = (
-              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
-                PARTIAL
+            const isApproved = p.status === 'APPROVED';
+            const isRejected = p.status === 'REJECTED';
+
+            let approvalBadge = (
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-300 block max-w-fit">
+                PENDING APPROVAL
               </span>
             );
-            if (pendAmt <= 0 && pkgAmt > 0) {
-              statusBadge = (
-                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  FULLY PAID
+            if (isApproved) {
+              approvalBadge = (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 block max-w-fit">
+                  CONFIRMED
                 </span>
               );
-            } else if (totalPaid === 0) {
-              statusBadge = (
-                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-50 text-red-700 border border-red-200">
-                  UNPAID
+            } else if (isRejected) {
+              approvalBadge = (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-gray-100 text-gray-700 border border-gray-300 block max-w-fit">
+                  REJECTED
                 </span>
               );
             }
+
+            const canManage = ['ADMIN', 'LEAD_MANAGER'].includes(user?.role);
 
             return [
               <input
@@ -388,15 +451,17 @@ export const PaymentsList = () => {
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />,
               <div>
-                {p.Case ? (
+                {p.Case?.id ? (
                   <button
                     onClick={() => openCaseDrawer(p.Case)}
                     className="text-blue-600 font-bold hover:underline block text-xs text-left"
                   >
                     {p.Case.case_number}
                   </button>
-                ) : <span className="text-xs font-semibold text-gray-400">No Case</span>}
-                {lead?.lead_number && (
+                ) : (
+                  <span className="text-xs font-bold text-purple-700 block">{p.Case?.case_number || lead?.lead_number || 'Unconverted Lead'}</span>
+                )}
+                {lead?.lead_number && p.Case?.id && (
                   <span className="text-[10px] text-gray-400 font-semibold block">{lead.lead_number}</span>
                 )}
               </div>,
@@ -406,7 +471,9 @@ export const PaymentsList = () => {
               </div>,
               <span className="text-xs font-semibold text-slate-700">{lead?.service_required || 'Standard Package'}</span>,
               <span className="text-xs font-bold text-slate-800">AED {pkgAmt.toFixed(2)}</span>,
-              <span className="text-xs font-extrabold text-emerald-600">AED {parseFloat(p.amount || 0).toFixed(2)}</span>,
+              <span className={`text-xs font-extrabold ${isApproved ? 'text-emerald-600' : isRejected ? 'text-gray-400 line-through' : 'text-amber-600'}`}>
+                AED {parseFloat(p.amount || 0).toFixed(2)}
+              </span>,
               <span className={`text-xs font-extrabold ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
                 AED {pendAmt.toFixed(2)}
               </span>,
@@ -414,21 +481,54 @@ export const PaymentsList = () => {
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 block max-w-fit uppercase">
                   {p.payment_method || 'CASH'}
                 </span>
-                {p.transaction_id && (
-                  <span className="text-[10px] font-mono text-gray-400 block mt-0.5 truncate max-w-[120px]" title={p.transaction_id}>
-                    TX: {p.transaction_id}
-                  </span>
-                )}
               </div>,
               <div>
                 <span className="text-xs font-bold text-slate-800 block">{p.creator?.name || 'System'}</span>
-                {lead?.counselor?.name && (
-                  <span className="text-[10px] text-slate-400 font-semibold block">Sales: {lead.counselor.name}</span>
-                )}
+
               </div>,
               <div>
                 <span className="text-xs font-semibold text-slate-700 block">{new Date(p.payment_date).toLocaleDateString()}</span>
-                <div className="mt-1">{statusBadge}</div>
+                <div className="mt-1">{approvalBadge}</div>
+              </div>,
+              <div className="flex items-center gap-1.5">
+                {canManage && !isApproved && !isRejected ? (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleApprovePayment(p.id); }}
+                      className="px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
+                      title="Approve Payment"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRejectPayment(p.id); }}
+                      className="px-2 py-1 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-all"
+                      title="Reject Payment"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 font-semibold">
+                    {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending'}
+                  </span>
+                )}
+                {canManage && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Are you sure you want to delete this payment record?')) {
+                        axios.post('/api/v1/payments/bulk-delete', { payment_ids: [p.id] })
+                          .then(() => fetchPayments())
+                          .catch(err => alert(err.response?.data?.message || 'Failed to delete payment'));
+                      }
+                    }}
+                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                    title="Delete Payment"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ];
           })}
@@ -547,48 +647,87 @@ export const PaymentsList = () => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {casePaymentLogs.map((log, idx) => (
-                        <div key={log.id || idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <span className="text-base font-extrabold text-emerald-600 block">
-                                AED {parseFloat(log.amount).toFixed(2)}
-                              </span>
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 inline-block uppercase mt-1">
-                                {log.payment_method || 'CASH'}
-                              </span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-xs font-semibold text-slate-500 block">
-                                {new Date(log.payment_date).toLocaleDateString()}
-                              </span>
-                              {log.transaction_id && (
-                                <span className="text-[10px] font-mono text-gray-400 block mt-0.5">
-                                  TX: {log.transaction_id}
+                      {casePaymentLogs.map((log, idx) => {
+                        const isApproved = log.status === 'APPROVED';
+                        const isRejected = log.status === 'REJECTED';
+                        const canManage = ['ADMIN', 'LEAD_MANAGER'].includes(user?.role);
+
+                        return (
+                          <div key={log.id || idx} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm relative">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <span className={`text-base font-extrabold block ${isApproved ? 'text-emerald-600' : isRejected ? 'text-gray-400 line-through' : 'text-amber-600'}`}>
+                                  AED {parseFloat(log.amount).toFixed(2)}
                                 </span>
-                              )}
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 inline-block uppercase">
+                                    {log.payment_method || 'CASH'}
+                                  </span>
+                                  {isApproved ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      CONFIRMED
+                                    </span>
+                                  ) : isRejected ? (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 text-gray-700 border border-gray-200">
+                                      REJECTED
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 border border-red-200">
+                                      PENDING APPROVAL
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xs font-semibold text-slate-500 block">
+                                  {new Date(log.payment_date).toLocaleDateString()}
+                                </span>
+                                {log.transaction_id && (
+                                  <span className="text-[10px] font-mono text-gray-400 block mt-0.5">
+                                    TX: {log.transaction_id}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {log.notes && (
+                              <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg mt-3 border border-slate-100">
+                                {log.notes}
+                              </p>
+                            )}
+
+                            <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 mt-3 text-[11px] text-slate-400">
+                              <span>Logged by: <strong className="text-slate-700">{log.creator?.name || 'Staff'}</strong></span>
+                              <div className="flex items-center gap-2">
+                                {canManage && !isApproved && !isRejected && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleApprovePayment(log.id)}
+                                      className="px-2 py-0.5 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleRejectPayment(log.id)}
+                                      className="px-2 py-0.5 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 rounded"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                )}
+                                {log.receipt_path && (
+                                  <button
+                                    onClick={() => handleDownloadProof(log.id)}
+                                    className="text-blue-600 font-bold hover:underline flex items-center gap-1"
+                                  >
+                                    <Download className="h-3 w-3" /> Download Receipt
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-
-                          {log.notes && (
-                            <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg mt-3 border border-slate-100">
-                              {log.notes}
-                            </p>
-                          )}
-
-                          <div className="flex items-center justify-between border-t border-gray-100 pt-2.5 mt-3 text-[11px] text-slate-400">
-                            <span>Logged by: <strong className="text-slate-700">{log.creator?.name || 'Staff'}</strong></span>
-                            {log.receipt_path && (
-                              <button
-                                onClick={() => handleDownloadProof(log.id)}
-                                className="text-blue-600 font-bold hover:underline flex items-center gap-1"
-                              >
-                                <Download className="h-3 w-3" /> Download Receipt
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
