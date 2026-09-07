@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const { User, Role, ActivityLog } = require('../models');
+const { getRealIp } = require('../utils/ipHelper');
 
 const generateAccessToken = (user) => {
   return jwt.sign({ id: user.id, email: user.email }, env.JWT_SECRET, { expiresIn: '15m' });
@@ -39,13 +40,14 @@ const login = async (req, res) => {
     user.last_login = new Date();
     await user.save();
 
+    const clientIp = getRealIp(req);
     await ActivityLog.create({
       user_id: user.id,
       entity_type: 'User',
       entity_id: user.id,
       action: 'LOGIN',
-      description: `User logged in from IP ${req.ip}`,
-      ip_address: req.ip
+      description: `User logged in from IP ${clientIp}`,
+      ip_address: clientIp
     });
 
     const cookieOptions = {
@@ -86,7 +88,7 @@ const logout = async (req, res) => {
         entity_id: req.user.id,
         action: 'LOGOUT',
         description: `User logged out`,
-        ip_address: req.ip
+        ip_address: getRealIp(req)
       });
     }
 
@@ -187,7 +189,7 @@ const forgotPassword = async (req, res) => {
       entity_id: user.id,
       action: 'FORGOT_PASSWORD',
       description: 'Password reset request initiated',
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({
@@ -224,7 +226,7 @@ const resetPassword = async (req, res) => {
       entity_id: user.id,
       action: 'RESET_PASSWORD',
       description: 'Password reset successfully executed',
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({ success: true, message: 'Password reset completed successfully' });

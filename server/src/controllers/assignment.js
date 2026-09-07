@@ -1,6 +1,7 @@
 const { sequelize, Lead, User, Role, LeadInteraction, ActivityLog, Notification } = require('../models');
 const { Op } = require('sequelize');
 const { createNotification } = require('../services/notificationService');
+const { getRealIp } = require('../utils/ipHelper');
 
 const getUnassignedLeads = async (req, res) => {
   try {
@@ -70,7 +71,7 @@ const assignLead = async (req, res) => {
       old_value: oldCounselorId,
       new_value: counselor_id,
       description: `Lead ${lead.lead_number} assigned to counselor ${counselor.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();
@@ -131,7 +132,7 @@ const reassignLead = async (req, res) => {
       old_value: oldCounselorId,
       new_value: counselor_id,
       description: `Lead ${lead.lead_number} reassigned to counselor ${counselor.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();
@@ -198,7 +199,7 @@ const bulkAssignLeads = async (req, res) => {
       action: 'BULK_ASSIGN_LEADS',
       new_value: JSON.stringify({ lead_ids, counselor_id }),
       description: `Bulk assigned ${lead_ids.length} leads to counselor ${counselor.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();

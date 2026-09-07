@@ -4,6 +4,7 @@ const { parse } = require('csv-parse/sync');
 const xlsx = require('xlsx');
 const pdfParse = require('pdf-parse');
 const { sequelize, Lead, LeadImport, ActivityLog, User } = require('../models');
+const { getRealIp } = require('../utils/ipHelper');
 
 const normalizeHeaders = (headers) => {
   const mapping = {
@@ -284,7 +285,7 @@ const confirmImportLeads = async (req, res) => {
       entity_id: leadImportLog.id,
       action: 'BULK_IMPORT',
       description: `Bulk imported ${successCount} leads from ${file_name}. Failures: ${failedCount}. Duplicates: ${duplicateCount}. Strategy: ${duplicate_strategy}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();

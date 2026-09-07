@@ -280,12 +280,10 @@ export const ActivityLogsList = () => {
             'OPERATOR & ROLE',
             'ACTION TYPE',
             'CHANGES / DESCRIPTION',
-            'DATE & TIME',
-            'STATUS'
+            'DATE & TIME'
           ]}
           rows={paginatedLogs.map(log => {
             const isFailed = (log.action || '').toUpperCase().includes('FAIL') || (log.description || '').toLowerCase().includes('fail') || (log.description || '').toLowerCase().includes('error');
-            const statusLabel = isFailed ? 'Failed' : 'Success';
             
             const category = getActionCategory(log.action, log.description);
             const dateObj = new Date(log.created_at || log.createdAt);
@@ -336,13 +334,7 @@ export const ActivityLogsList = () => {
               <div>
                 <div className="font-semibold text-slate-800 text-xs">{dateStr}</div>
                 <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{timeStr}</div>
-              </div>,
-              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
-                isFailed ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${isFailed ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
-                {statusLabel}
-              </span>
+              </div>
             ];
           })}
         />

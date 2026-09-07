@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { Lead, User, Role, LeadInteraction, ActivityLog, Notification, Case, CasePackage, Package } = require('../models');
 const { leadCreateSchema, leadUpdateSchema } = require('../validators/lead');
 const { logAudit } = require('../utils/auditLogger');
+const { getRealIp } = require('../utils/ipHelper');
 
 const getRoleLabel = (user) => {
   const name = user?.role?.name || user?.role || 'User';
@@ -14,9 +15,23 @@ const getRoleLabel = (user) => {
 
 const createLead = async (req, res) => {
   try {
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER') {
+      return res.status(403).json({ success: false, message: 'Access denied: Case Managers are not authorized to create leads.' });
+    }
+
     const validated = leadCreateSchema.parse(req.body);
-    if (req.user.role.name === 'COUNSELOR') {
+    if (roleName === 'COUNSELOR') {
       delete validated.profit;
+      validated.counselor_id = req.user.id;
+    }
+
+    if (validated.payment_date) {
+      const pDateStr = new Date(validated.payment_date).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (pDateStr > todayStr) {
+        return res.status(400).json({ success: false, message: 'Payment date cannot be greater than the current date.' });
+      }
     }
 
     const maxId = (await Lead.max('id', { paranoid: false })) || 0;
@@ -57,7 +72,7 @@ const createLead = async (req, res) => {
       action: 'CREATE_LEAD',
       new_value: JSON.stringify(lead),
       description: `Manual lead ${leadNumber} created by ${req.user.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(201).json({ success: true, data: lead });
@@ -249,6 +264,14 @@ const updateLead = async (req, res) => {
       delete validated.profit;
     }
 
+    if (validated.payment_date) {
+      const pDateStr = new Date(validated.payment_date).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (pDateStr > todayStr) {
+        return res.status(400).json({ success: false, message: 'Payment date cannot be greater than the current date.' });
+      }
+    }
+
     const where = { id: req.params.id };
     if (req.user.role.name === 'COUNSELOR') {
       where.counselor_id = req.user.id;
@@ -307,7 +330,7 @@ const updateLead = async (req, res) => {
       old_value: JSON.stringify(oldLeadJson),
       new_value: JSON.stringify(newLeadJson),
       description,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     const data = lead.toJSON();
@@ -339,7 +362,7 @@ const deleteLead = async (req, res) => {
       entity_id: req.params.id,
       action: 'DELETE_LEAD',
       description: `Lead ${lead.lead_number} soft-deleted by ${req.user.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({ success: true, message: 'Lead deleted successfully' });
@@ -517,7 +540,7 @@ const createLeadInteraction = async (req, res) => {
       entity_id: lead.id,
       action: 'ADD_INTERACTION',
       description: `Interaction of type ${interaction_type || 'NOTE'} added for lead ${lead.lead_number}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(201).json({ success: true, data: interaction });
@@ -582,7 +605,7 @@ const bulkDeleteLeads = async (req, res) => {
       entity_type: 'Lead',
       action: 'BULK_DELETE_LEADS',
       description: `Bulk deleted ${count} leads by ${req.user.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({ success: true, message: `Successfully deleted ${count} leads` });

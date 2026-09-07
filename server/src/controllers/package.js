@@ -12,7 +12,19 @@ const getRoleLabel = (user) => {
 
 const getPackages = async (req, res) => {
   try {
-    const list = await Package.findAll({ order: [['name', 'ASC']] });
+    let list = await Package.findAll({ order: [['name', 'ASC']] });
+    if (list.length === 0) {
+      const defaultProducts = [
+        { name: 'Canada Visit Visa', amount: 5000, description: 'Canada tourist / visit visa processing', status: true },
+        { name: 'UK Visit Visa', amount: 4500, description: 'UK tourist / visit visa processing', status: true },
+        { name: 'Schengen Visa', amount: 4000, description: 'Schengen short stay visa processing', status: true },
+        { name: 'Australia Visa', amount: 5000, description: 'Australia tourist & visitor visa processing', status: true },
+        { name: 'Business Setup', amount: 15000, description: 'UAE / International Business Setup & Licensing', status: true },
+        { name: 'Other Services', amount: 0, description: 'Miscellaneous visa and documentation services', status: true }
+      ];
+      await Package.bulkCreate(defaultProducts);
+      list = await Package.findAll({ order: [['name', 'ASC']] });
+    }
     return res.status(200).json({ success: true, data: list });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve packages', errors: [error.message] });

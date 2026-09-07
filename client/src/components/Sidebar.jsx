@@ -6,8 +6,13 @@ import { Clipboard, Folder, Users, FileText, User as UserIcon, Activity, Setting
 export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, appName }) => {
   const location = useLocation();
   const [imgError, setImgError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [internalLogo, setInternalLogo] = useState(logoIcon || '');
   const [internalAppName, setInternalAppName] = useState(appName || 'EVG CRM');
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.profile_image]);
 
   useEffect(() => {
     if (logoIcon) {
@@ -68,6 +73,10 @@ export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, app
 
   if (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER' || user?.role === 'CASE_MANAGER' || user?.role === 'COUNSELOR') {
     mgmtLinks.push({ label: 'Payments Ledger', to: '/payments', icon: Clipboard });
+  }
+
+  if (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') {
+    mgmtLinks.push({ label: 'Products & Services', to: '/packages', icon: Clipboard });
   }
 
   if (user?.role === 'ADMIN') {
@@ -140,9 +149,18 @@ export const Sidebar = ({ user, logout, mobileOpen, setMobileOpen, logoIcon, app
       </nav>
       <div className="p-4 border-t border-gray-100 bg-slate-50/40">
         <div className="flex items-center mb-3">
-          <div className="h-9 w-9 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">
-            {user?.name?.charAt(0) || 'S'}
-          </div>
+          {user?.profile_image && !avatarError ? (
+            <img
+              src={getImageUrl(user.profile_image)}
+              alt={user?.name || 'User Profile'}
+              className="h-9 w-9 rounded-full object-cover border border-gray-200 shrink-0"
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            <div className="h-9 w-9 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+              {user?.name?.charAt(0) || 'S'}
+            </div>
+          )}
           <div className="ml-3 overflow-hidden">
             <p className="text-sm font-semibold text-slate-800 truncate">{user?.name}</p>
             <p className="text-xs text-slate-400 font-semibold truncate capitalize">{user?.role === 'ADMIN' ? 'Administrator' : user?.role}</p>

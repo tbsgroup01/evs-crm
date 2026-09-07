@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, Search, Bell, MessageSquare, Moon, Maximize } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,20 @@ export const Navbar = ({
   const navigate = useNavigate();
   const notifRef = useRef(null);
   const searchRef = useRef(null);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.profile_image]);
+
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -156,9 +170,18 @@ export const Navbar = ({
 
 
         <div className="flex items-center gap-3 border-l pl-4 border-gray-100">
-          <div className="h-9 w-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center">
-            {user?.name?.charAt(0) || 'S'}
-          </div>
+          {user?.profile_image && !avatarError ? (
+            <img
+              src={getImageUrl(user.profile_image)}
+              alt={user?.name || 'User Profile'}
+              className="h-9 w-9 rounded-full object-cover border border-gray-200"
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            <div className="h-9 w-9 rounded-full bg-purple-600 text-white font-bold text-sm flex items-center justify-center">
+              {user?.name?.charAt(0) || 'S'}
+            </div>
+          )}
           <div className="hidden md:block text-left">
             <p className="text-xs font-bold text-slate-900 leading-none">{user?.name}</p>
             <p className="text-[10px] text-slate-400 font-semibold mt-0.5 capitalize">{user?.role === 'ADMIN' ? 'Administrator' : user?.role}</p>

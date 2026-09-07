@@ -16,7 +16,7 @@ const getRoleLabel = (user) => {
 
 const getPayments = async (req, res) => {
   try {
-    const roleName = req.user.role?.name || req.user.role;
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
     const caseWhere = {};
 
     if (roleName === 'CASE_MANAGER') {
@@ -25,12 +25,17 @@ const getPayments = async (req, res) => {
 
     const leadInclude = {
       model: Lead,
-      attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'counselor_id'],
+      attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'counselor_id', 'created_by'],
       include: [{ model: User, as: 'counselor', attributes: ['id', 'name'] }]
     };
 
     if (roleName === 'COUNSELOR') {
-      leadInclude.where = { counselor_id: req.user.id };
+      leadInclude.where = {
+        [Op.or]: [
+          { counselor_id: req.user.id },
+          { created_by: req.user.id }
+        ]
+      };
       leadInclude.required = true;
     }
 
@@ -43,8 +48,11 @@ const getPayments = async (req, res) => {
       ]
     };
 
-    if (Object.keys(caseWhere).length > 0) {
+    if (roleName === 'CASE_MANAGER') {
       caseInclude.where = caseWhere;
+      caseInclude.required = true;
+    } else if (roleName === 'COUNSELOR') {
+      caseInclude.required = true;
     }
 
     const explicitPayments = await Payment.findAll({
@@ -55,53 +63,57 @@ const getPayments = async (req, res) => {
       order: [['id', 'DESC']]
     });
 
-    // Also include unconverted leads with initial payments (paid_amount > 0)
-    const leadWhere = { paid_amount: { [Op.gt]: 0 } };
-    if (roleName === 'COUNSELOR') {
-      leadWhere.counselor_id = req.user.id;
-    }
+    let initialLeadPayments = [];
+    if (roleName !== 'CASE_MANAGER') {
+      const leadWhere = { paid_amount: { [Op.gt]: 0 } };
+      if (roleName === 'COUNSELOR') {
+        leadWhere[Op.or] = [
+          { counselor_id: req.user.id },
+          { created_by: req.user.id }
+        ];
+      }
 
-    const leadsWithInitialPayments = await Lead.findAll({
-      where: leadWhere,
-      include: [
-        { model: User, as: 'counselor', attributes: ['id', 'name'] },
-        { model: User, as: 'creator', attributes: ['id', 'name'] }
-      ]
-    });
+      const leadsWithInitialPayments = await Lead.findAll({
+        where: leadWhere,
+        include: [
+          { model: User, as: 'counselor', attributes: ['id', 'name'] },
+          { model: User, as: 'creator', attributes: ['id', 'name'] }
+        ]
+      });
 
-    const leadIdsWithCases = new Set(explicitPayments.map(p => p.Case?.Lead?.id).filter(Boolean));
+      const leadIdsWithCases = new Set(explicitPayments.map(p => p.Case?.Lead?.id).filter(Boolean));
 
-    const initialLeadPayments = [];
-    for (const lead of leadsWithInitialPayments) {
-      if (!leadIdsWithCases.has(lead.id)) {
-        const c = await Case.findOne({
-          where: { lead_id: lead.id },
-          include: [
-            { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] }
-          ]
-        });
+      for (const lead of leadsWithInitialPayments) {
+        if (!leadIdsWithCases.has(lead.id)) {
+          const c = await Case.findOne({
+            where: { lead_id: lead.id },
+            include: [
+              { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] }
+            ]
+          });
 
-        initialLeadPayments.push({
-          id: `lead-init-${lead.id}`,
-          amount: lead.paid_amount,
-          payment_date: lead.payment_date || lead.created_at,
-          payment_method: 'CASH',
-          transaction_id: 'INITIAL_LEAD_PAYMENT',
-          notes: 'Initial payment recorded during lead entry',
-          created_by: lead.created_by,
-          status: 'APPROVED',
-          creator: lead.creator ? { name: lead.creator.name } : { name: 'Staff' },
-          Case: c ? {
-            id: c.id,
-            case_number: c.case_number,
-            caseManager: c.caseManager,
-            Lead: lead
-          } : {
-            id: null,
-            case_number: lead.lead_number,
-            Lead: lead
-          }
-        });
+          initialLeadPayments.push({
+            id: `lead-init-${lead.id}`,
+            amount: lead.paid_amount,
+            payment_date: lead.payment_date || lead.created_at,
+            payment_method: 'CASH',
+            transaction_id: 'INITIAL_LEAD_PAYMENT',
+            notes: 'Initial payment recorded during lead entry',
+            created_by: lead.created_by,
+            status: 'APPROVED',
+            creator: lead.creator ? { name: lead.creator.name } : { name: 'Staff' },
+            Case: c ? {
+              id: c.id,
+              case_number: c.case_number,
+              caseManager: c.caseManager,
+              Lead: lead
+            } : {
+              id: null,
+              case_number: lead.lead_number,
+              Lead: lead
+            }
+          });
+        }
       }
     }
 
@@ -120,11 +132,16 @@ const getPayments = async (req, res) => {
 const getCasePayments = async (req, res) => {
   try {
     const { id } = req.params;
-    const singleCase = await Case.findByPk(id);
+    const singleCase = await Case.findByPk(id, { include: [Lead] });
     if (!singleCase) return res.status(404).json({ success: false, message: 'Case not found' });
 
-    if (req.user.role.name === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this case.' });
+    }
+
+    if (roleName === 'COUNSELOR' && singleCase.Lead?.counselor_id !== req.user.id && singleCase.Lead?.created_by !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this lead/client.' });
     }
 
     const list = await Payment.findAll({
@@ -145,8 +162,13 @@ const getCasePaymentSummary = async (req, res) => {
     const singleCase = await Case.findByPk(id, { include: [Lead] });
     if (!singleCase) return res.status(404).json({ success: false, message: 'Case not found' });
 
-    if (req.user.role.name === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this case.' });
+    }
+
+    if (roleName === 'COUNSELOR' && singleCase.Lead?.counselor_id !== req.user.id && singleCase.Lead?.created_by !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this lead/client.' });
     }
 
     const cp = await CasePackage.findOne({
@@ -157,20 +179,29 @@ const getCasePaymentSummary = async (req, res) => {
     const packageAmount = cp ? parseFloat(cp.package_amount) : (singleCase.Lead?.package_amount ? parseFloat(singleCase.Lead.package_amount) : 0);
     const paymentCount = await Payment.count({ where: { case_id: id } });
     const approvedSum = await Payment.sum('amount', { where: { case_id: id, status: 'APPROVED' } }) || 0;
+    const awaitingSum = await Payment.sum('amount', { where: { case_id: id, status: 'PENDING' } }) || 0;
     
-    let totalPaid = 0;
+    let totalReceived = 0;
+    let approvedAmount = 0;
+    let awaitingApprovalAmount = 0;
+
     if (paymentCount > 0) {
-      totalPaid = approvedSum;
+      approvedAmount = parseFloat(approvedSum);
+      awaitingApprovalAmount = parseFloat(awaitingSum);
+      totalReceived = approvedAmount + awaitingApprovalAmount;
     } else {
-      totalPaid = singleCase.Lead?.paid_amount ? parseFloat(singleCase.Lead.paid_amount) : 0;
+      totalReceived = singleCase.Lead?.paid_amount ? parseFloat(singleCase.Lead.paid_amount) : 0;
+      approvedAmount = totalReceived;
+      awaitingApprovalAmount = 0;
     }
 
-    const balance = Math.max(0, packageAmount - totalPaid);
+    const pendingBalance = Math.max(0, packageAmount - totalReceived);
+    const balance = Math.max(0, packageAmount - approvedAmount);
 
     let paymentStatus = 'UNPAID';
-    if (totalPaid >= packageAmount && packageAmount > 0) {
+    if (approvedAmount >= packageAmount && packageAmount > 0) {
       paymentStatus = 'FULLY_PAID';
-    } else if (totalPaid > 0) {
+    } else if (totalReceived > 0) {
       paymentStatus = 'PARTIAL';
     }
 
@@ -178,7 +209,11 @@ const getCasePaymentSummary = async (req, res) => {
       success: true,
       data: {
         packageAmount,
-        totalPaid,
+        totalReceived,
+        approvedAmount,
+        awaitingApprovalAmount,
+        pendingBalance,
+        totalPaid: totalReceived,
         balance,
         paymentStatus
       }
@@ -200,6 +235,16 @@ const addPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Valid positive payment amount is required' });
     }
 
+    if (payment_date) {
+      const pDateStr = new Date(payment_date).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (pDateStr > todayStr) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Payment date cannot be greater than the current date.' });
+      }
+    }
+
     const singleCase = await Case.findByPk(id, { include: [Lead], transaction });
     if (!singleCase) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
@@ -207,10 +252,17 @@ const addPayment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Case not found' });
     }
 
-    if (req.user.role.name === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER' && singleCase.case_manager_id !== req.user.id) {
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       await transaction.rollback();
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this case.' });
+    }
+
+    if (roleName === 'COUNSELOR' && singleCase.Lead?.counselor_id !== req.user.id && singleCase.Lead?.created_by !== req.user.id) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this lead/client.' });
     }
 
     const userRole = req.user.role?.name || req.user.role;
@@ -432,16 +484,22 @@ const downloadPaymentReceipt = async (req, res) => {
   try {
     const { id } = req.params;
     const payment = await Payment.findByPk(id, {
-      include: [{ model: Case, attributes: ['id', 'case_manager_id'] }]
+      include: [{
+        model: Case,
+        attributes: ['id', 'case_manager_id'],
+        include: [{ model: Lead, attributes: ['id', 'counselor_id', 'created_by'] }]
+      }]
     });
 
     if (!payment) return res.status(404).json({ success: false, message: 'Payment record not found' });
     if (!payment.receipt_path) return res.status(404).json({ success: false, message: 'No receipt file uploaded for this payment' });
 
-    if (req.user.role.name === 'CASE_MANAGER') {
-      if (payment.Case.case_manager_id !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Access denied' });
-      }
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER' && payment.Case?.case_manager_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this case.' });
+    }
+    if (roleName === 'COUNSELOR' && payment.Case?.Lead?.counselor_id !== req.user.id && payment.Case?.Lead?.created_by !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Access denied: You are not assigned to this lead/client.' });
     }
 
     const absolutePath = path.resolve(payment.receipt_path);

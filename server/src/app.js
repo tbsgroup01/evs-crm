@@ -4,6 +4,7 @@ const helmet = require('helmet');
 // const rateLimit = require('express-rate-limit');
 const path = require('path');
 const logger = require('./utils/logger');
+const { getRealIp } = require('./utils/ipHelper');
 const authRoutes = require('./routes/auth');
 const leadsRoutes = require('./routes/leads');
 const casesRoutes = require('./routes/cases');
@@ -12,6 +13,9 @@ const usersRoutes = require('./routes/users');
 const settingsRoutes = require('./routes/settings');
 
 const app = express();
+
+// Trust reverse proxies (Nginx, Cloudflare, Load Balancers) to extract true client IP
+app.set('trust proxy', true);
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
@@ -38,7 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.url} - IP: ${req.ip}`);
+  logger.info(`${req.method} ${req.url} - IP: ${getRealIp(req)}`);
   next();
 });
 

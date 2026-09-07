@@ -14,6 +14,12 @@ const startServer = async () => {
     logger.info('Database models synchronized successfully.');
 
     try {
+      const [userCols] = await sequelize.query("SHOW COLUMNS FROM users LIKE 'username'");
+      if (userCols.length === 0) {
+        await sequelize.query("ALTER TABLE users ADD COLUMN username VARCHAR(255) UNIQUE NULL;");
+        logger.info('Added username column to users table.');
+      }
+
       const [results] = await sequelize.query("SHOW COLUMNS FROM payments LIKE 'status'");
       if (results.length === 0) {
         await sequelize.query("ALTER TABLE payments ADD COLUMN status VARCHAR(255) NOT NULL DEFAULT 'PENDING';");

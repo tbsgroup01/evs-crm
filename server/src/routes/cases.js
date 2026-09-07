@@ -37,7 +37,7 @@ const upload = require('../config/storage');
 
 const router = express.Router();
 
-router.post('/leads/:id/convert', authenticate, convertLeadToCase);
+router.post('/leads/:id/convert', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), convertLeadToCase);
 
 router.get('/cases', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR'), getCases);
 router.get('/cases/export', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR'), exportCases);

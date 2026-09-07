@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const { User, Role, Lead, Case, ActivityLog } = require('../models');
+const { getRealIp } = require('../utils/ipHelper');
 
 const getUsers = async (req, res) => {
   try {
@@ -18,6 +19,7 @@ const getUsers = async (req, res) => {
       return {
         id: data.id,
         name: data.name,
+        username: data.username || '',
         email: data.email,
         phone: data.mobile_1 || data.phone || '',
         mobile_1: data.mobile_1 || data.phone || '',
@@ -42,15 +44,22 @@ const getUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    let { name, email, phone, mobile_1, mobile_2, extension, password, role_id, status } = req.body;
+    let { name, username, email, phone, mobile_1, mobile_2, extension, password, role_id, status } = req.body;
     mobile_1 = mobile_1 || phone || null;
 
-    if (!name || !email || !password || !role_id) {
-      return res.status(400).json({ success: false, message: 'Name, email, password, and role are required' });
+    if (!name || !username || !email || !password || !role_id) {
+      return res.status(400).json({ success: false, message: 'Name, username, email, password, and role are required' });
     }
 
-    const existing = await User.findOne({ where: { email } });
-    if (existing) {
+    const cleanUsername = username.trim().toLowerCase();
+
+    const existingUsername = await User.findOne({ where: { username: cleanUsername } });
+    if (existingUsername) {
+      return res.status(409).json({ success: false, message: 'This username already exists. Please choose another username.' });
+    }
+
+    const existingEmail = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    if (existingEmail) {
       return res.status(409).json({ success: false, message: 'Email already in use' });
     }
 
@@ -62,7 +71,8 @@ const createUser = async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email,
+      username: cleanUsername,
+      email: email.trim().toLowerCase(),
       phone: mobile_1,
       mobile_1,
       mobile_2: mobile_2 || null,
@@ -78,8 +88,8 @@ const createUser = async (req, res) => {
       entity_type: 'User',
       entity_id: user.id,
       action: 'USER_CREATED',
-      description: `User ${name} (${email}) created by ${req.user.name}`,
-      ip_address: req.ip
+      description: `User ${name} (@${cleanUsername}) created by ${req.user.name}`,
+      ip_address: getRealIp(req)
     });
 
     return res.status(201).json({
@@ -87,6 +97,7 @@ const createUser = async (req, res) => {
       data: {
         id: user.id,
         name: user.name,
+        username: user.username,
         email: user.email,
         phone: user.phone,
         mobile_1: user.mobile_1,
@@ -120,8 +131,25 @@ const updateUser = async (req, res) => {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    let { name, email, phone, mobile_1, mobile_2, extension, role_id } = req.body;
+    let { name, username, email, phone, mobile_1, mobile_2, extension, role_id } = req.body;
     mobile_1 = mobile_1 || phone || user.mobile_1 || user.phone;
+
+    let cleanUsername = user.username;
+    if (username) {
+      cleanUsername = username.trim().toLowerCase();
+      if (cleanUsername !== user.username) {
+        const { Op } = require('sequelize');
+        const existingUsername = await User.findOne({
+          where: {
+            username: cleanUsername,
+            id: { [Op.ne]: user.id }
+          }
+        });
+        if (existingUsername) {
+          return res.status(409).json({ success: false, message: 'This username already exists. Please choose another username.' });
+        }
+      }
+    }
 
     let profile_image = user.profile_image;
     if (req.file) {
@@ -130,7 +158,8 @@ const updateUser = async (req, res) => {
 
     await user.update({
       name: name !== undefined ? name : user.name,
-      email: email !== undefined ? email : user.email,
+      username: cleanUsername,
+      email: email !== undefined ? email.trim().toLowerCase() : user.email,
       phone: mobile_1,
       mobile_1: mobile_1 !== undefined ? mobile_1 : user.mobile_1,
       mobile_2: mobile_2 !== undefined ? mobile_2 : user.mobile_2,
@@ -163,7 +192,7 @@ const toggleUserStatus = async (req, res) => {
       entity_id: user.id,
       action: 'USER_DISABLED',
       description: `User status changed to ${status} for user ${user.name} (${user.email}) by admin ${req.user.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({ success: true, data: user });
@@ -189,7 +218,7 @@ const resetPassword = async (req, res) => {
       entity_id: user.id,
       action: 'USER_PASSWORD_RESET',
       description: `Password reset for user ${user.name} (${user.email}) by admin ${req.user.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     });
 
     return res.status(200).json({ success: true, message: 'Password reset successfully' });

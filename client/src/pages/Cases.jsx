@@ -11,6 +11,18 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Pagination } from '../components/Pagination';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
+import { formatAED } from '../utils/formatters';
+
+export const formatCaseDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'N/A';
+  const day = String(d.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
 export const CaseList = () => {
   const { user } = useContext(AuthContext);
@@ -28,6 +40,8 @@ export const CaseList = () => {
   const [assignManagerId, setAssignManagerId] = useState('');
 
   const navigate = useNavigate();
+  const userRole = user?.role?.name || user?.role;
+  const canCreateCase = userRole !== 'CASE_MANAGER';
 
   useEffect(() => {
     fetchCases();
@@ -114,16 +128,7 @@ export const CaseList = () => {
       });
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'N/A';
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (dateStr) => formatCaseDate(dateStr);
 
   const sortHeader = (label) => (
     <div className="flex items-center gap-1 cursor-pointer select-none">
@@ -161,9 +166,11 @@ export const CaseList = () => {
               </button>
             </>
           )}
-          <button onClick={() => navigate('/leads')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-            <Plus className="h-4 w-4" /> Create Case
-          </button>
+          {canCreateCase && (
+            <button onClick={() => navigate('/leads')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+              <Plus className="h-4 w-4" /> Create Case
+            </button>
+          )}
         </div>
       </div>
 
@@ -280,8 +287,8 @@ export const CaseList = () => {
                   value={c.case_manager_id || c.caseManager?.id || ''}
                   onChange={(e) => handleSingleAssign(c.id, e.target.value)}
                   className={`text-xs py-1.5 px-2.5 border rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-sm transition-all max-w-[140px] ${!(c.case_manager_id || c.caseManager?.id)
-                      ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
-                      : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
+                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold'
+                    : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-white hover:border-blue-300'
                     }`}
                 >
                   <option value="" disabled className="text-amber-800 font-bold bg-amber-50">
@@ -302,10 +309,10 @@ export const CaseList = () => {
                   </span>
                 )
               ),
-              <span className="text-xs font-bold text-slate-900">AED {pkgAmt.toFixed(2)}</span>,
-              <span className="text-xs font-extrabold text-emerald-600">AED {paidAmt.toFixed(2)}</span>,
+              <span className="text-xs font-bold text-slate-900">{formatAED(pkgAmt)}</span>,
+              <span className="text-xs font-extrabold text-emerald-600">{formatAED(paidAmt)}</span>,
               <span className={`text-xs font-extrabold ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                AED {pendAmt.toFixed(2)}
+                {formatAED(pendAmt)}
               </span>,
               payStatusBadge,
               <StatusBadge status={c.status} />,
@@ -404,6 +411,7 @@ export const CaseDetail = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
+  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
   const [payTxId, setPayTxId] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [payFile, setPayFile] = useState(null);
@@ -470,9 +478,16 @@ export const CaseDetail = () => {
   };
 
   const handleAddPayment = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (payDate && payDate > todayStr) {
+      alert('Payment date cannot be greater than the current date.');
+      return;
+    }
+
     const fd = new FormData();
     fd.append('amount', payAmount);
     fd.append('payment_method', payMethod);
+    fd.append('payment_date', payDate);
     fd.append('transaction_id', payTxId);
     fd.append('notes', payNotes);
     if (payFile) {
@@ -486,6 +501,7 @@ export const CaseDetail = () => {
       setPayTxId('');
       setPayNotes('');
       setPayFile(null);
+      setPayDate(new Date().toISOString().split('T')[0]);
       setPaymentOpen(false);
       fetchCaseDetails();
     }).catch(err => {
@@ -619,7 +635,7 @@ export const CaseDetail = () => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Opened At</p>
-                    <p className="text-slate-800 font-bold mt-1 text-sm">{new Date(caseObj.opened_at).toLocaleDateString()}</p>
+                    <p className="text-slate-800 font-bold mt-1 text-sm">{formatCaseDate(caseObj.opened_at)}</p>
                   </div>
                 </div>
 
@@ -640,28 +656,36 @@ export const CaseDetail = () => {
                   <div>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Completed At</p>
                     <p className="text-slate-800 font-bold mt-1 text-sm">
-                      {caseObj.completed_at ? new Date(caseObj.completed_at).toLocaleDateString() : 'Active File'}
+                      {caseObj.completed_at ? formatCaseDate(caseObj.completed_at) : 'Active File'}
                     </p>
                   </div>
                 </div>
               </div>
             </Card>
 
-            <Card title="Financial Summary" className="h-full flex flex-col">
-              <div className="space-y-4 text-xs font-semibold flex-1 flex flex-col justify-around">
-                <div className="flex justify-between border-b border-gray-50 pb-2.5">
-                  <span className="text-gray-400">Package Amount</span>
-                  <span className="font-bold text-slate-850">AED {summary?.packageAmount?.toFixed(2) || '0.00'}</span>
+            <Card title="Financial Summary & Package Details" className="h-full flex flex-col">
+              <div className="space-y-2.5 text-xs font-semibold flex-1 flex flex-col justify-around">
+                <div className="flex justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-500">Package Price</span>
+                  <span className="font-bold text-slate-900">{formatAED(summary?.packageAmount || 0)}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-50 pb-2.5">
-                  <span className="text-gray-400">Total Paid</span>
-                  <span className="font-bold text-emerald-600">AED {summary?.totalPaid?.toFixed(2) || '0.00'}</span>
+                <div className="flex justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-500">Total Payment Received</span>
+                  <span className="font-bold text-blue-600">{formatAED(summary?.totalReceived !== undefined ? summary.totalReceived : (summary?.totalPaid || 0))}</span>
                 </div>
-                <div className="flex justify-between border-b border-gray-50 pb-2.5">
-                  <span className="text-gray-400">Outstanding Balance</span>
-                  <span className="font-bold text-red-650">AED {summary?.balance?.toFixed(2) || '0.00'}</span>
+                <div className="flex justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-500">Total Approved Payment</span>
+                  <span className="font-bold text-emerald-600">{formatAED(summary?.approvedAmount !== undefined ? summary.approvedAmount : (summary?.totalPaid || 0))}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-500">Payment Awaiting Approval</span>
+                  <span className="font-bold text-amber-600">{formatAED(summary?.awaitingApprovalAmount || 0)}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-500">Pending Balance</span>
+                  <span className="font-bold text-red-600">{formatAED(summary?.pendingBalance !== undefined ? summary.pendingBalance : (summary?.balance || 0))}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1">
                   <span className="text-gray-400">Payment Status</span>
                   <span className="text-[10px] uppercase font-bold text-slate-800 bg-slate-150/70 px-2 py-0.5 rounded">
                     {summary?.paymentStatus || 'PENDING'}
@@ -682,8 +706,8 @@ export const CaseDetail = () => {
               <div className="relative pl-6 border-l border-slate-200 space-y-6 mt-2 ml-3">
                 {interactions.slice(0, 5).map((item) => {
                   const dateObj = new Date(item.created_at);
-                  const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                  const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                  const dStr = formatCaseDate(item.created_at);
+                  const tStr = isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
                   return (
                     <div key={item.id} className="relative flex items-start justify-between gap-4">
@@ -751,7 +775,7 @@ export const CaseDetail = () => {
                 let dateObj = rawDate ? new Date(rawDate) : new Date();
                 if (isNaN(dateObj.getTime())) dateObj = new Date();
 
-                const dStr = dateObj.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                const dStr = formatCaseDate(rawDate);
                 const tStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
                 return (
@@ -803,7 +827,7 @@ export const CaseDetail = () => {
               <a href={`/api/v1/documents/${d.id}/download`} target="_blank" rel="noreferrer" className="text-blue-600 font-bold hover:underline">{d.file_name}</a>,
               <div>
                 <span className="font-bold text-slate-800 text-xs block">{d.uploader?.name || 'N/A'}</span>
-                <span className="text-slate-400 text-[10px] block">{d.created_at || d.createdAt ? new Date(d.created_at || d.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</span>
+                <span className="text-slate-400 text-[10px] block">{formatCaseDate(d.created_at || d.createdAt)}</span>
               </div>,
               <div>
                 <StatusBadge status={d.status} />
@@ -840,8 +864,41 @@ export const CaseDetail = () => {
             <h2 className="text-lg font-bold text-gray-900">Payments Ledger</h2>
             <Button onClick={() => setPaymentOpen(true)} className="flex items-center gap-1.5"><Plus className="h-4 w-4" /> Add Payment</Button>
           </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Package Price</span>
+              <span className="text-sm font-extrabold text-slate-900 mt-1 block">
+                {formatAED(summary?.packageAmount || 0)}
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Paid / Received</span>
+              <span className="text-sm font-extrabold text-blue-600 mt-1 block">
+                {formatAED(summary?.totalReceived !== undefined ? summary.totalReceived : (summary?.totalPaid || 0))}
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Approved Payment</span>
+              <span className="text-sm font-extrabold text-emerald-600 mt-1 block">
+                {formatAED(summary?.approvedAmount !== undefined ? summary.approvedAmount : (summary?.totalPaid || 0))}
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Payment Awaiting Approval</span>
+              <span className="text-sm font-extrabold text-amber-600 mt-1 block">
+                {formatAED(summary?.awaitingApprovalAmount || 0)}
+              </span>
+            </div>
+            <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm text-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pending Balance</span>
+              <span className="text-sm font-extrabold text-red-600 mt-1 block">
+                {formatAED(summary?.pendingBalance !== undefined ? summary.pendingBalance : (summary?.balance || 0))}
+              </span>
+            </div>
+          </div>
           <DataTable
-            headers={['Amount', 'Payment Method', 'Transaction ID', 'Approval Status', 'Notes', 'Recorded By', 'Receipt Proof', 'Date', 'Actions']}
+            headers={['Payment Date', 'Amount', 'Payment Method', 'Transaction ID', 'Status', 'Added By', 'Notes', 'Receipt Proof', 'Actions']}
             rows={payments.map(p => {
               const isApproved = p.status === 'APPROVED';
               const isRejected = p.status === 'REJECTED';
@@ -856,7 +913,7 @@ export const CaseDetail = () => {
               if (isApproved) {
                 badge = (
                   <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    CONFIRMED
+                    APPROVED
                   </span>
                 );
               } else if (isRejected) {
@@ -868,18 +925,18 @@ export const CaseDetail = () => {
               }
 
               return [
-                <span className="font-bold text-slate-800">AED {parseFloat(p.amount).toFixed(2)}</span>,
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-50 text-slate-500 uppercase">{p.payment_method}</span>,
-                <span className="font-mono text-xs">{p.transaction_id || 'N/A'}</span>,
+                <span className="text-xs font-bold text-slate-800">{formatCaseDate(p.payment_date)}</span>,
+                <span className="font-bold text-slate-900">{formatAED(p.amount)}</span>,
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">{p.payment_method}</span>,
+                <span className="font-mono text-xs text-slate-600">{p.transaction_id || 'N/A'}</span>,
                 badge,
-                <span className="text-xs text-gray-500 block max-w-xs truncate" title={p.notes}>{p.notes || 'N/A'}</span>,
                 <div>
                   <span className="text-xs font-bold text-slate-800 block">{p.creator?.name || 'System'}</span>
                 </div>,
+                <span className="text-xs text-gray-500 block max-w-xs truncate" title={p.notes}>{p.notes || 'N/A'}</span>,
                 p.receipt_path ? (
                   <a href={`/api/v1/payments/${p.id}/download`} target="_blank" rel="noreferrer" className="text-blue-600 font-bold hover:underline flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Download Proof</a>
                 ) : <span className="text-xs text-gray-400">No Proof</span>,
-                <span className="text-xs font-semibold text-slate-700">{new Date(p.payment_date).toLocaleDateString()}</span>,
                 <div>
                   {canManage && !isApproved && !isRejected ? (
                     <div className="flex items-center gap-1.5">
@@ -1000,6 +1057,16 @@ export const CaseDetail = () => {
             value={payMethod}
             onChange={(e) => setPayMethod(e.target.value)}
           />
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date *</label>
+            <input
+              type="date"
+              value={payDate}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setPayDate(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg p-2.5 bg-white"
+            />
+          </div>
           <Input
             label="Reference Transaction ID"
             id="tx_id"

@@ -5,6 +5,7 @@ import { Users, Folder, TrendingUp, Calendar, DollarSign, FileText, ArrowRight, 
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
+import { formatAED } from '../utils/formatters';
 
 export const ReportsPanel = () => {
   const [leads, setLeads] = useState([]);
@@ -187,7 +188,7 @@ export const ReportsPanel = () => {
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Collection</span>
-              <span className="text-xl font-bold text-slate-800 mt-1 block">AED {totalPaymentsCollected.toFixed(2)}</span>
+              <span className="text-xl font-bold text-slate-800 mt-1 block">{formatAED(totalPaymentsCollected)}</span>
               <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">▲ 100% vs last 30 days</span>
             </div>
             <div className="h-8 w-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
@@ -363,7 +364,7 @@ export const ReportsPanel = () => {
         <div className="bg-white rounded-xl p-5 shadow-sm ">
           <h3 className="text-slate-800 font-bold text-base mb-2">Financial Accounts Report</h3>
           <span className="text-xs text-gray-400 font-medium block">Total Collected Amount</span>
-          <span className="text-xl font-bold text-emerald-600 mt-1 block">AED {totalPaymentsCollected.toFixed(2)}</span>
+          <span className="text-xl font-bold text-emerald-600 mt-1 block">{formatAED(totalPaymentsCollected)}</span>
 
           <div className="w-full h-48 mt-4">
             <svg className="w-full h-full text-gray-200" viewBox="0 0 200 100" preserveAspectRatio="none">

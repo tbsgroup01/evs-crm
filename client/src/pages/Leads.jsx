@@ -11,6 +11,7 @@ import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
+import { formatAED } from '../utils/formatters';
 
 export const LeadList = () => {
   const { user } = useContext(AuthContext);
@@ -29,7 +30,9 @@ export const LeadList = () => {
   const [assignCounselorId, setAssignCounselorId] = useState('');
 
   const navigate = useNavigate();
-  const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
+  const userRole = user?.role?.name || user?.role;
+  const canManageProfit = userRole === 'ADMIN' || userRole === 'LEAD_MANAGER';
+  const canCreateLead = userRole !== 'CASE_MANAGER';
 
   useEffect(() => {
     fetchLeads();
@@ -155,9 +158,11 @@ export const LeadList = () => {
               </button>
             </>
           )}
-          <button onClick={() => navigate('/leads/new')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-            <Plus className="h-4 w-4" /> Create Lead
-          </button>
+          {canCreateLead && (
+            <button onClick={() => navigate('/leads/new')} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+              <Plus className="h-4 w-4" /> Create Lead
+            </button>
+          )}
         </div>
       </div>
 
@@ -310,9 +315,9 @@ export const LeadList = () => {
                 <span className="text-gray-400 block text-[10px]">{numAdults} Adult(s), {numKids} Kid(s)</span>
               </div>,
               <div className="text-xs">
-                <span className="font-bold text-slate-800">AED {pkgAmt.toFixed(2)}</span>
+                <span className="font-bold text-slate-800">{formatAED(pkgAmt)}</span>
                 <span className={`block text-[10px] font-semibold ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  {pendAmt > 0 ? `Pending: AED ${pendAmt.toFixed(2)}` : 'Fully Paid'}
+                  {pendAmt > 0 ? `Pending: ${formatAED(pendAmt)}` : 'Fully Paid'}
                 </span>
               </div>,
               canManageProfit ? (
@@ -344,7 +349,7 @@ export const LeadList = () => {
               ),
               ...(canManageProfit ? [
                 <span className="text-xs font-bold text-emerald-600">
-                  {l.profit !== null && l.profit !== undefined ? `AED ${parseFloat(l.profit).toFixed(2)}` : 'N/A'}
+                  {l.profit !== null && l.profit !== undefined ? formatAED(l.profit) : 'N/A'}
                 </span>
               ] : []),
               <StatusBadge status={l.status} />,
@@ -423,6 +428,8 @@ export const LeadList = () => {
 export const LeadDetail = () => {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
+  const userRole = user?.role?.name || user?.role;
+  const canCreateCase = userRole !== 'CASE_MANAGER';
   const [lead, setLead] = useState(null);
   const [interactions, setInteractions] = useState([]);
 
@@ -513,6 +520,12 @@ export const LeadDetail = () => {
   };
 
   const handleConfirmConvert = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (convPaymentDate && convPaymentDate > todayStr) {
+      alert('Payment date cannot be greater than the current date.');
+      return;
+    }
+
     const pkg = convPkgAmount !== '' && convPkgAmount !== null ? parseFloat(convPkgAmount) : (lead?.package_amount ? parseFloat(lead.package_amount) : 0);
     const newPaid = convNewPaymentAmount !== '' && convNewPaymentAmount !== null ? parseFloat(convNewPaymentAmount) : 0;
 
@@ -601,13 +614,15 @@ export const LeadDetail = () => {
             </button>
 
             {lead.status !== 'CONVERTED' ? (
-              <button
-                onClick={openConvertModal}
-                className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
-              >
-                <FolderPlus className="h-4 w-4 text-emerald-100" />
-                <span>Convert To Case</span>
-              </button>
+              canCreateCase && (
+                <button
+                  onClick={openConvertModal}
+                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <FolderPlus className="h-4 w-4 text-emerald-100" />
+                  <span>Convert To Case</span>
+                </button>
+              )
             ) : (
               <span className="px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-xs rounded-xl flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-600" /> Converted
@@ -704,7 +719,7 @@ export const LeadDetail = () => {
               </div>
               <div>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Total Package Amount</p>
-                <p className="text-slate-800 font-bold mt-1 text-sm">AED {pkgAmt.toFixed(2)}</p>
+                <p className="text-slate-800 font-bold mt-1 text-sm">{formatAED(pkgAmt)}</p>
               </div>
             </div>
 
@@ -715,7 +730,7 @@ export const LeadDetail = () => {
               <div>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Paid Amount & Payment Date</p>
                 <p className="text-slate-800 font-bold mt-1 text-sm">
-                  AED {paidAmt.toFixed(2)} {lead.payment_date ? `(Paid on ${lead.payment_date})` : ''}
+                  {formatAED(paidAmt)} {lead.payment_date ? `(Paid on ${lead.payment_date})` : ''}
                 </p>
               </div>
             </div>
@@ -727,7 +742,7 @@ export const LeadDetail = () => {
               <div>
                 <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pending Balance</p>
                 <p className={`font-bold mt-1 text-sm ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                  AED {pendAmt.toFixed(2)}
+                  {formatAED(pendAmt)}
                 </p>
               </div>
             </div>
@@ -740,7 +755,7 @@ export const LeadDetail = () => {
                 <div>
                   <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Profit Margin (Admin & Manager Only)</p>
                   <p className="text-emerald-950 font-extrabold mt-0.5 text-base">
-                    {lead.profit !== null && lead.profit !== undefined ? `AED ${parseFloat(lead.profit).toFixed(2)}` : 'Not set'}
+                    {lead.profit !== null && lead.profit !== undefined ? formatAED(lead.profit) : 'Not set'}
                   </p>
                 </div>
               </div>
@@ -862,7 +877,7 @@ export const LeadDetail = () => {
                 <span className="text-[11px] text-blue-700 block">This initial token payment will be linked to the new Case ledger.</span>
               </div>
               <div className="text-right">
-                <span className="text-sm font-extrabold text-blue-900 block">AED {parseFloat(lead.paid_amount).toFixed(2)}</span>
+                <span className="text-sm font-extrabold text-blue-900 block">{formatAED(lead.paid_amount)}</span>
                 {lead.payment_date && <span className="text-[10px] text-blue-600 font-semibold block">Date: {lead.payment_date}</span>}
               </div>
             </div>
@@ -898,6 +913,7 @@ export const LeadDetail = () => {
               <input
                 type="date"
                 value={convPaymentDate}
+                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setConvPaymentDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
               />
@@ -907,7 +923,10 @@ export const LeadDetail = () => {
               <input
                 type="number"
                 readOnly
-                value={Math.max(0, parseFloat(convPkgAmount || 0) - parseFloat(lead?.paid_amount || 0) - parseFloat(convNewPaymentAmount || 0)).toFixed(2)}
+                value={(() => {
+                  const calc = Math.max(0, parseFloat(convPkgAmount || 0) - parseFloat(lead?.paid_amount || 0) - parseFloat(convNewPaymentAmount || 0));
+                  return calc % 1 === 0 ? calc : calc.toFixed(2);
+                })()}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-100 font-bold text-amber-700"
               />
             </div>
@@ -999,6 +1018,8 @@ export const LeadForm = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState(null);
+  const [packagesList, setPackagesList] = useState([]);
+  const [counselorsList, setCounselorsList] = useState([]);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
@@ -1009,6 +1030,18 @@ export const LeadForm = () => {
   });
 
   const canManageProfit = user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER';
+
+  useEffect(() => {
+    axios.get('/api/v1/packages')
+      .then(res => setPackagesList(res.data.data || []))
+      .catch(() => {});
+
+    if (canManageProfit) {
+      axios.get('/api/v1/users')
+        .then(res => setCounselorsList((res.data.data || []).filter(u => u.role === 'COUNSELOR')))
+        .catch(() => {});
+    }
+  }, [canManageProfit]);
 
   const adultsVal = watch('adults');
   const kidsVal = watch('kids');
@@ -1039,6 +1072,12 @@ export const LeadForm = () => {
     setErrorMsg(null);
     if (!canManageProfit) {
       delete data.profit;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (data.payment_date && data.payment_date > todayStr) {
+      setErrorMsg('Payment date cannot be greater than the current date.');
+      return;
     }
 
     const action = id ? axios.put(`/api/v1/leads/${id}`, data) : axios.post('/api/v1/leads', data);
@@ -1081,8 +1120,38 @@ export const LeadForm = () => {
           <Input label="Mobile Number *" id="mobile" register={register} errors={errors} required />
           <Input label="Email Address" id="email" type="email" register={register} errors={errors} />
           <Input label="Nationality" id="nationality" register={register} errors={errors} placeholder="e.g. UAE / Indian / British" />
-          <Input label="Required Service / Category" id="service_required" register={register} errors={errors} placeholder="e.g. Business Visa / Golden Visa" />
+          <Select
+            label="Required Product / Service *"
+            id="service_required"
+            register={register}
+            errors={errors}
+            options={[
+              { value: '', label: 'Select Product / Service...' },
+              ...packagesList.map(p => ({ value: p.name, label: `${p.name}${p.amount ? ` (AED ${parseFloat(p.amount).toLocaleString()})` : ''}` }))
+            ]}
+            onChange={(e) => {
+              const selectedVal = e.target.value;
+              setValue('service_required', selectedVal);
+              const foundPkg = packagesList.find(p => p.name === selectedVal);
+              if (foundPkg && foundPkg.amount) {
+                setValue('package_amount', foundPkg.amount);
+              }
+            }}
+          />
           <Input label="Lead Source" id="lead_source" register={register} errors={errors} placeholder="e.g. Website / Referral" />
+
+          {canManageProfit && (
+            <Select
+              label="Assign Sales Team Member"
+              id="counselor_id"
+              register={register}
+              errors={errors}
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...counselorsList.map(c => ({ value: c.id, label: c.name }))
+              ]}
+            />
+          )}
 
           <div className="grid grid-cols-3 gap-3 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-gray-200">
             <div>
@@ -1139,6 +1208,7 @@ export const LeadForm = () => {
               <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Date</label>
               <input
                 type="date"
+                max={new Date().toISOString().split('T')[0]}
                 {...register('payment_date')}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
               />

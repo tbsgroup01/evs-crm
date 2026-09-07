@@ -6,6 +6,7 @@ import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
 import { DataTable } from '../components/DataTable';
 import { AuthContext } from '../App';
+import { formatAED } from '../utils/formatters';
 import { Users, FileCheck, Landmark, AlertCircle, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Flame, Sparkles, Activity, Calendar, Filter } from 'lucide-react';
 
 import { Sun, History } from 'lucide-react';
@@ -248,7 +249,7 @@ export const AdminDashboard = () => {
             </div>
           </div>
           <div className="mt-2">
-            <p className="text-2xl font-bold text-slate-900">AED {summary?.totalRevenue?.toFixed(2) || '0.00'}</p>
+            <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.totalRevenue || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">
@@ -279,7 +280,7 @@ export const AdminDashboard = () => {
             </div>
           </div>
           <div className="mt-2">
-            <p className="text-2xl font-bold text-slate-900">AED {summary?.outstandingAmount?.toFixed(2) || '0.00'}</p>
+            <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.outstandingAmount || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-10">

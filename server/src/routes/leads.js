@@ -37,16 +37,16 @@ const upload = require('../config/storage');
 
 const router = express.Router();
 
-router.post('/leads', authenticate, createLead);
-router.get('/leads', authenticate, getLeads);
-router.get('/leads/export', authenticate, exportLeads);
+router.post('/leads', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), createLead);
+router.get('/leads', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), getLeads);
+router.get('/leads/export', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), exportLeads);
 router.get('/leads/unassigned', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), getUnassignedLeads);
-router.get('/leads/stats', authenticate, getLeadsStats);
-router.get('/leads/:id', authenticate, getLeadById);
-router.put('/leads/:id', authenticate, updateLead);
-router.delete('/leads/:id', authenticate, deleteLead);
+router.get('/leads/stats', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), getLeadsStats);
+router.get('/leads/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), getLeadById);
+router.put('/leads/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), updateLead);
+router.delete('/leads/:id', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), deleteLead);
 router.post('/leads/bulk-delete', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), bulkDeleteLeads);
-router.patch('/leads/:id/status', authenticate, updateLeadStatus);
+router.patch('/leads/:id/status', authenticate, authorize('ADMIN', 'LEAD_MANAGER', 'COUNSELOR'), updateLeadStatus);
 
 router.post('/leads/:id/assign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), assignLead);
 router.post('/leads/:id/reassign', authenticate, authorize('ADMIN', 'LEAD_MANAGER'), reassignLead);

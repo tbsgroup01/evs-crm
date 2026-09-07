@@ -42,7 +42,8 @@ const ProtectedRoute = ({ children, roles = [] }) => {
   const { user, loading } = useContext(AuthContext);
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (roles.length > 0 && !roles.includes(user.role)) {
+  const userRole = user?.role?.name || user?.role;
+  if (roles.length > 0 && !roles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <DashboardLayout>{children}</DashboardLayout>;
@@ -57,20 +58,21 @@ const AppContent = () => {
       </div>
     );
   }
+  const userRole = user?.role?.name || user?.role;
   return (
     <Routes base="/">
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={
         <ProtectedRoute>
-          {user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER' ? <AdminDashboard /> : null}
-          {user?.role === 'COUNSELOR' ? <CounselorDashboard /> : null}
-          {user?.role === 'CASE_MANAGER' ? <CaseManagerDashboard /> : null}
+          {userRole === 'ADMIN' || userRole === 'LEAD_MANAGER' ? <AdminDashboard /> : null}
+          {userRole === 'COUNSELOR' ? <CounselorDashboard /> : null}
+          {userRole === 'CASE_MANAGER' ? <CaseManagerDashboard /> : null}
         </ProtectedRoute>
       } />
-      <Route path="/leads" element={<ProtectedRoute><LeadList /></ProtectedRoute>} />
-      <Route path="/leads/new" element={<ProtectedRoute><LeadForm /></ProtectedRoute>} />
-      <Route path="/leads/edit/:id" element={<ProtectedRoute><LeadForm /></ProtectedRoute>} />
-      <Route path="/leads/:id" element={<ProtectedRoute><LeadDetail /></ProtectedRoute>} />
+      <Route path="/leads" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'COUNSELOR']}><LeadList /></ProtectedRoute>} />
+      <Route path="/leads/new" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'COUNSELOR']}><LeadForm /></ProtectedRoute>} />
+      <Route path="/leads/edit/:id" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'COUNSELOR']}><LeadForm /></ProtectedRoute>} />
+      <Route path="/leads/:id" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'COUNSELOR']}><LeadDetail /></ProtectedRoute>} />
       <Route path="/leads/import" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER']}><LeadImportWizard /></ProtectedRoute>} />
       <Route path="/cases" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><CaseList /></ProtectedRoute>} />
       <Route path="/cases/:id" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><CaseDetail /></ProtectedRoute>} />
@@ -78,6 +80,7 @@ const AppContent = () => {
       <Route path="/settings" element={<ProtectedRoute roles={['ADMIN']}><SettingsPanel /></ProtectedRoute>} />
       <Route path="/document-categories" element={<ProtectedRoute roles={['ADMIN']}><DocumentCategoriesList /></ProtectedRoute>} />
       <Route path="/payments" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER', 'CASE_MANAGER', 'COUNSELOR']}><PaymentsList /></ProtectedRoute>} />
+      <Route path="/packages" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER']}><PackagesList /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute roles={['ADMIN', 'LEAD_MANAGER']}><ReportsPanel /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute roles={['ADMIN']}><UsersList /></ProtectedRoute>} />
       <Route path="/activity" element={<ProtectedRoute roles={['ADMIN']}><ActivityLogsList /></ProtectedRoute>} />
@@ -157,9 +160,19 @@ function App() {
     });
   };
 
+  const refetchUser = () => {
+    return axios.get('/api/v1/auth/me')
+      .then(res => {
+        if (res.data?.data?.user) {
+          setUser(res.data.data.user);
+        }
+      })
+      .catch(() => {});
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ user, loading, login, logout }}>
+      <AuthContext.Provider value={{ user, loading, login, logout, refetchUser }}>
         <BrowserRouter>
           <AppContent />
         </BrowserRouter>

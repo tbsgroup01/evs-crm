@@ -14,6 +14,12 @@ const getRoleLabel = (user) => {
 const convertLeadToCase = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+    if (roleName === 'CASE_MANAGER') {
+      await transaction.rollback();
+      return res.status(403).json({ success: false, message: 'Access denied: Case Managers are not authorized to create cases.' });
+    }
+
     const { id } = req.params;
     const {
       case_number,
@@ -60,6 +66,15 @@ const convertLeadToCase = async (req, res) => {
     const numAdults = parseInt(adults !== undefined && adults !== null && adults !== '' ? adults : (lead.adults || 1));
     const numKids = parseInt(kids !== undefined && kids !== null && kids !== '' ? kids : (lead.kids || 0));
     const totalPax = numAdults + numKids;
+    if (payment_date) {
+      const pDateStr = new Date(payment_date).toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (pDateStr > todayStr) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Payment date cannot be greater than the current date.' });
+      }
+    }
+
     let validPayDate = new Date();
     const inputDateStr = payment_date || lead.payment_date;
     if (inputDateStr) {
@@ -255,7 +270,7 @@ const getCases = async (req, res) => {
       const approvedPaid = paymentsList
         .filter(p => p.status === 'APPROVED')
         .reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-      
+
       let effectivePaid = 0;
       if (paymentsList.length > 0) {
         effectivePaid = approvedPaid;
@@ -655,7 +670,7 @@ const getCaseInteractions = async (req, res) => {
           if (diffStr && (!notesText || !notesText.includes(':'))) {
             notesText = `${notesText}: ${diffStr}`;
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       return {

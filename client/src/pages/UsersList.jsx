@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { Search, Download, Filter, Upload, Plus, Eye, MoreVertical, X, Users, Folder, TrendingUp, Calendar, CheckSquare, Camera, Phone, Edit, PhoneCall } from 'lucide-react';
 import { Card } from '../components/Card';
@@ -7,8 +7,10 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
+import { AuthContext } from '../App';
 
 export const UsersList = () => {
+  const { user: currentUser, refetchUser } = useContext(AuthContext);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
 
@@ -20,6 +22,7 @@ export const UsersList = () => {
 
   // Form Fields
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [mobile1, setMobile1] = useState('');
   const [mobile2, setMobile2] = useState('');
@@ -78,6 +81,7 @@ export const UsersList = () => {
 
   const resetForm = () => {
     setName('');
+    setUsername('');
     setEmail('');
     setMobile1('');
     setMobile2('');
@@ -98,13 +102,14 @@ export const UsersList = () => {
   };
 
   const handleCreate = () => {
-    if (!name || !email || !password || !roleId) {
-      alert('Please fill in required fields (Name, Email, Password, Role)');
+    if (!name || !username || !email || !password || !roleId) {
+      alert('Please fill in required fields (Name, Username, Email, Password, Role)');
       return;
     }
 
     const formData = new FormData();
     formData.append('name', name);
+    formData.append('username', username);
     formData.append('email', email);
     formData.append('mobile_1', mobile1);
     formData.append('mobile_2', mobile2);
@@ -129,6 +134,7 @@ export const UsersList = () => {
   const handleEditOpen = (user) => {
     setEditingUserId(user.id);
     setName(user.name || '');
+    setUsername(user.username || '');
     setEmail(user.email || '');
     setMobile1(user.mobile_1 || user.phone || '');
     setMobile2(user.mobile_2 || '');
@@ -148,6 +154,7 @@ export const UsersList = () => {
 
     const formData = new FormData();
     formData.append('name', name);
+    if (username) formData.append('username', username);
     formData.append('email', email);
     formData.append('mobile_1', mobile1);
     formData.append('mobile_2', mobile2);
@@ -163,6 +170,7 @@ export const UsersList = () => {
       resetForm();
       setEditOpen(false);
       fetchUsers();
+      if (refetchUser) refetchUser();
     }).catch(err => {
       alert(err.response?.data?.message || 'Failed to update user');
     });
@@ -190,6 +198,7 @@ export const UsersList = () => {
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.username?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
       u.mobile_1?.includes(search) ||
       u.mobile_2?.includes(search) ||
@@ -356,7 +365,12 @@ export const UsersList = () => {
                   </div>
                 )}
                 <div>
-                  <div className="font-semibold text-slate-800 text-sm">{u.name}</div>
+                  <div className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
+                    <span>{u.name}</span>
+                    {u.username && (
+                      <span className="text-xs text-blue-600 font-medium">(@{u.username})</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500">{u.email}</div>
                 </div>
               </div>,
@@ -475,7 +489,7 @@ export const UsersList = () => {
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> {selectedUser.status === 'ACTIVE' ? 'Verified' : 'Disabled'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">{selectedUser.email}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{selectedUser.email} {selectedUser.username ? `• @${selectedUser.username}` : ''}</p>
             <span className={`mt-3 px-3 py-1 rounded-lg text-xs font-bold ${selectedUser.role === 'ADMIN' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
               selectedUser.role === 'LEAD_MANAGER' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
                 selectedUser.role === 'COUNSELOR' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
@@ -569,6 +583,10 @@ export const UsersList = () => {
           {sidebarTab === 'details' && (
             <div className="space-y-3 text-xs text-slate-700">
               <div className="flex justify-between py-1.5 border-b border-gray-100">
+                <span className="text-gray-400">Username:</span>
+                <span className="font-semibold text-slate-900">{selectedUser.username ? `@${selectedUser.username}` : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-400">Mobile 1:</span>
                 <span className="font-semibold text-slate-900">{selectedUser.mobile_1 || selectedUser.phone || 'N/A'}</span>
               </div>
@@ -645,7 +663,10 @@ export const UsersList = () => {
               </div>
 
               <Input label="Full Name *" id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. John Doe" />
-              <Input label="Email Address *" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input label="Username *" id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. sakshi" />
+                <Input label="Email Address *" id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="john@example.com" />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Input label="Mobile 1 *" id="mobile1" value={mobile1} onChange={(e) => setMobile1(e.target.value)} placeholder="+971 50 123 4567" />
@@ -714,7 +735,10 @@ export const UsersList = () => {
               </div>
 
               <Input label="Full Name *" id="edit_name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label="Email Address *" id="edit_email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Input label="Username *" id="edit_username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="e.g. sakshi" />
+                <Input label="Email Address *" id="edit_email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Input label="Mobile 1" id="edit_mobile1" value={mobile1} onChange={(e) => setMobile1(e.target.value)} />

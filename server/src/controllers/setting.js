@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { Setting, ActivityLog } = require('../models');
+const { getRealIp } = require('../utils/ipHelper');
 
 const DEFAULT_SETTINGS = {
   general: {
@@ -85,7 +86,7 @@ const updateSettings = async (req, res) => {
         entity_id: 1,
         action: 'UPDATE_SETTINGS',
         description: `Updated ${group} settings`,
-        ip_address: req.ip
+        ip_address: getRealIp(req)
       });
     }
 

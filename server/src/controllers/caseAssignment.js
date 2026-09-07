@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { sequelize, Case, User, Role, CaseAssignment, ActivityLog, Notification, Lead } = require('../models');
 const { createNotification } = require('../services/notificationService');
+const { getRealIp } = require('../utils/ipHelper');
 
 const getUnassignedCases = async (req, res) => {
   try {
@@ -69,7 +70,7 @@ const assignCase = async (req, res) => {
       old_value: oldManagerId,
       new_value: case_manager_id,
       description: `Case ${singleCase.case_number} assigned to manager ${manager.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();
@@ -135,7 +136,7 @@ const bulkAssignCases = async (req, res) => {
       action: 'BULK_ASSIGN_CASES',
       new_value: JSON.stringify({ case_ids, case_manager_id }),
       description: `Bulk assigned ${case_ids.length} cases to manager ${manager.name}`,
-      ip_address: req.ip
+      ip_address: getRealIp(req)
     }, { transaction });
 
     await transaction.commit();

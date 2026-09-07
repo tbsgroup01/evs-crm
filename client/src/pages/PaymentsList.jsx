@@ -5,6 +5,7 @@ import { Search, Download, Filter, Upload, Plus, DollarSign, Calendar, Users, Cr
 import { DataTable } from '../components/DataTable';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
+import { formatAED } from '../utils/formatters';
 
 export const PaymentsList = () => {
   const { user } = useContext(AuthContext);
@@ -82,6 +83,12 @@ export const PaymentsList = () => {
   const handleAddPaymentSubmit = () => {
     if (!selectedCase?.id || !newAmount || parseFloat(newAmount) <= 0) {
       alert('Please enter a valid positive payment amount');
+      return;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (newDate && newDate > todayStr) {
+      alert('Payment date cannot be greater than the current date.');
       return;
     }
 
@@ -269,7 +276,11 @@ export const PaymentsList = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Payments Ledger & Payment Tracking</h1>
-          <p className="text-sm text-gray-500 mt-1">Complete financial tracking from lead entry to case settlement</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Complete financial tracking from lead entry to case settlement
+            {userRole === 'COUNSELOR' && <span className="ml-2 font-semibold text-blue-600">(Showing payment records for assigned clients only)</span>}
+            {userRole === 'CASE_MANAGER' && <span className="ml-2 font-semibold text-indigo-600">(Showing payment records for assigned cases only)</span>}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {canManage && selectedIds.length > 0 && (
@@ -301,7 +312,7 @@ export const PaymentsList = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Approved Collected</span>
-            <span className="text-2xl font-bold text-emerald-600 mt-1 block">AED {totalAmountCollected.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-emerald-600 mt-1 block">{formatAED(totalAmountCollected)}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <DollarSign className="h-5 w-5" />
@@ -311,7 +322,7 @@ export const PaymentsList = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">This Month Approved</span>
-            <span className="text-2xl font-bold text-purple-600 mt-1 block">AED {thisMonthAmount.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-purple-600 mt-1 block">{formatAED(thisMonthAmount)}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
             <Calendar className="h-5 w-5" />
@@ -321,7 +332,7 @@ export const PaymentsList = () => {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Outstanding Balance</span>
-            <span className="text-2xl font-bold text-amber-600 mt-1 block">AED {totalPendingBalance.toFixed(2)}</span>
+            <span className="text-2xl font-bold text-amber-600 mt-1 block">{formatAED(totalPendingBalance)}</span>
           </div>
           <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
             <Clock className="h-5 w-5" />
@@ -470,12 +481,12 @@ export const PaymentsList = () => {
                 <span className="text-gray-400 text-[10px] block">{lead?.mobile || 'N/A'}</span>
               </div>,
               <span className="text-xs font-semibold text-slate-700">{lead?.service_required || 'Standard Package'}</span>,
-              <span className="text-xs font-bold text-slate-800">AED {pkgAmt.toFixed(2)}</span>,
+              <span className="text-xs font-bold text-slate-800">{formatAED(pkgAmt)}</span>,
               <span className={`text-xs font-extrabold ${isApproved ? 'text-emerald-600' : isRejected ? 'text-gray-400 line-through' : 'text-amber-600'}`}>
-                AED {parseFloat(p.amount || 0).toFixed(2)}
+                {formatAED(p.amount)}
               </span>,
               <span className={`text-xs font-extrabold ${pendAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                AED {pendAmt.toFixed(2)}
+                {formatAED(pendAmt)}
               </span>,
               <div>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 block max-w-fit uppercase">
@@ -570,7 +581,7 @@ export const PaymentsList = () => {
           />
 
           <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col">
+            <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col">
               {/* Drawer Header */}
               <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
                 <div>
@@ -598,23 +609,35 @@ export const PaymentsList = () => {
               {/* Drawer Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50">
                 {/* Financial Summary Cards */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Package Deal</span>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Package Price</span>
                     <span className="text-sm font-extrabold text-slate-900 mt-1 block">
-                      AED {parseFloat(caseSummary?.packageAmount || selectedCase?.Lead?.package_amount || 0).toFixed(2)}
+                      {formatAED(caseSummary?.packageAmount || selectedCase?.Lead?.package_amount || 0)}
                     </span>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Paid</span>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Paid / Received</span>
+                    <span className="text-sm font-extrabold text-blue-600 mt-1 block">
+                      {formatAED(caseSummary?.totalReceived !== undefined ? caseSummary.totalReceived : (selectedCase?.Lead?.paid_amount || 0))}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Approved Payment</span>
                     <span className="text-sm font-extrabold text-emerald-600 mt-1 block">
-                      AED {parseFloat(caseSummary?.totalPaid !== undefined ? caseSummary.totalPaid : (selectedCase?.Lead?.paid_amount || 0)).toFixed(2)}
+                      {formatAED(caseSummary?.approvedAmount !== undefined ? caseSummary.approvedAmount : (selectedCase?.Lead?.paid_amount || 0))}
                     </span>
                   </div>
-                  <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pending</span>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Payment Awaiting Approval</span>
                     <span className="text-sm font-extrabold text-amber-600 mt-1 block">
-                      AED {parseFloat(caseSummary?.balance !== undefined ? caseSummary.balance : (selectedCase?.Lead?.pending_amount || 0)).toFixed(2)}
+                      {formatAED(caseSummary?.awaitingApprovalAmount || 0)}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pending Balance</span>
+                    <span className="text-sm font-extrabold text-red-600 mt-1 block">
+                      {formatAED(caseSummary?.pendingBalance !== undefined ? caseSummary.pendingBalance : (selectedCase?.Lead?.pending_amount || 0))}
                     </span>
                   </div>
                 </div>
@@ -657,7 +680,7 @@ export const PaymentsList = () => {
                             <div className="flex items-start justify-between">
                               <div>
                                 <span className={`text-base font-extrabold block ${isApproved ? 'text-emerald-600' : isRejected ? 'text-gray-400 line-through' : 'text-amber-600'}`}>
-                                  AED {parseFloat(log.amount).toFixed(2)}
+                                  {formatAED(log.amount)}
                                 </span>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 inline-block uppercase">
@@ -782,6 +805,7 @@ export const PaymentsList = () => {
               <input
                 type="date"
                 value={newDate}
+                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setNewDate(e.target.value)}
                 className="w-full text-sm border border-gray-300 rounded-lg p-2.5 bg-white"
               />
