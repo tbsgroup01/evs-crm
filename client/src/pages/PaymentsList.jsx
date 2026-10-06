@@ -6,6 +6,7 @@ import { DataTable } from '../components/DataTable';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
 import { formatAED } from '../utils/formatters';
+import { WhatsAppButton } from '../components/WhatsAppButton';
 
 export const PaymentsList = () => {
   const { user } = useContext(AuthContext);
@@ -478,7 +479,12 @@ export const PaymentsList = () => {
               </div>,
               <div onClick={() => p.Case && openCaseDrawer(p.Case)} className="cursor-pointer">
                 <span className="font-bold text-slate-800 text-xs block hover:text-blue-600">{lead?.client_name || 'N/A'}</span>
-                <span className="text-gray-400 text-[10px] block">{lead?.mobile || 'N/A'}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-gray-400 text-[10px] block">{lead?.mobile || 'N/A'}</span>
+                  {lead?.mobile && (
+                    <WhatsAppButton phone={lead.mobile} variant="icon" className="!w-4 !h-4" />
+                  )}
+                </div>
               </div>,
               <span className="text-xs font-semibold text-slate-700">{lead?.service_required || 'Standard Package'}</span>,
               <span className="text-xs font-bold text-slate-800">{formatAED(pkgAmt)}</span>,

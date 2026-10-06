@@ -10,6 +10,7 @@ import { formatAED } from '../utils/formatters';
 import { Users, FileCheck, Landmark, AlertCircle, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Flame, Sparkles, Activity, Calendar, Filter } from 'lucide-react';
 
 import { Sun, History } from 'lucide-react';
+import { WhatsAppButton } from '../components/WhatsAppButton';
 
 export const DateFilterHeader = ({ filterType, setFilterType, dateFrom, setDateFrom, dateTo, setDateTo }) => {
   const handleFilterTypeChange = (type) => {
@@ -70,11 +71,10 @@ export const DateFilterHeader = ({ filterType, setFilterType, dateFrom, setDateF
             <button
               key={id}
               onClick={() => handleFilterTypeChange(id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-sm shadow-blue-500/20'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${isActive
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-sm shadow-blue-500/20'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
             >
               <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : (id === 'TODAY' ? 'text-amber-500' : 'text-slate-400')}`} />
               {label}
@@ -182,27 +182,13 @@ export const AdminDashboard = () => {
               </div>
               <span className="text-sm text-slate-500 font-semibold">Total Leads</span>
             </div>
-            <div className="flex items-center text-xs text-green-600 font-medium">
-              <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" /> 12.5%
-            </div>
+
           </div>
           <div className="mt-2">
             <p className="text-3xl font-bold text-slate-900">{summary?.totalLeads || 0}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkLeads} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="y" stroke="#3b82f6" strokeWidth={1.5} fill="url(#colorBlue)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
@@ -213,27 +199,13 @@ export const AdminDashboard = () => {
               </div>
               <span className="text-sm text-slate-500 font-semibold">Active Cases</span>
             </div>
-            <div className="flex items-center text-xs text-green-600 font-medium">
-              <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" /> 8.2%
-            </div>
+
           </div>
           <div className="mt-2">
             <p className="text-3xl font-bold text-slate-900">{summary?.activeCases || 0}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkCases} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorGreen" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="y" stroke="#10b981" strokeWidth={1.5} fill="url(#colorGreen)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
@@ -244,27 +216,13 @@ export const AdminDashboard = () => {
               </div>
               <span className="text-sm text-slate-500 font-semibold">Total Revenue</span>
             </div>
-            <div className="flex items-center text-xs text-green-600 font-medium">
-              <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" /> 18.7%
-            </div>
+
           </div>
           <div className="mt-2">
             <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.totalRevenue || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkRev} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="y" stroke="#8b5cf6" strokeWidth={1.5} fill="url(#colorPurple)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
@@ -275,27 +233,13 @@ export const AdminDashboard = () => {
               </div>
               <span className="text-sm text-slate-500 font-semibold">Outstanding Balances</span>
             </div>
-            <div className="flex items-center text-xs text-red-600 font-medium">
-              <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" /> 6.4%
-            </div>
+
           </div>
           <div className="mt-2">
             <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.outstandingAmount || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkOut} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorOrange" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area type="monotone" dataKey="y" stroke="#f97316" strokeWidth={1.5} fill="url(#colorOrange)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+
         </div>
       </div>
 
@@ -395,7 +339,10 @@ export const AdminDashboard = () => {
             rows={(recent?.recentLeads || []).map(l => [
               l.lead_number,
               <Link to={`/leads/${l.id}`} className="text-blue-600 font-medium hover:underline">{l.client_name}</Link>,
-              l.mobile,
+              <div className="flex items-center gap-1.5">
+                <span>{l.mobile}</span>
+                {l.mobile && <WhatsAppButton phone={l.mobile} variant="icon" className="!w-4 !h-4" />}
+              </div>,
               <StatusBadge status={l.status} />,
               <span className="text-slate-400 text-xs flex items-center">2 mins ago</span>
             ])}
@@ -627,7 +574,10 @@ export const CounselorDashboard = () => {
           headers={['Client Name', 'Mobile', 'Status', 'Target Date']}
           rows={followups.filter(f => f.status === 'PENDING').map(f => [
             <Link to={`/leads/${f.Lead?.id}`} className="text-blue-600 font-semibold hover:underline">{f.Lead?.client_name}</Link>,
-            f.Lead?.mobile || 'N/A',
+            <div className="flex items-center gap-1.5">
+              <span>{f.Lead?.mobile || 'N/A'}</span>
+              {f.Lead?.mobile && <WhatsAppButton phone={f.Lead.mobile} variant="icon" className="!w-4 !h-4" />}
+            </div>,
             <StatusBadge status={f.Lead?.status} />,
             <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
               {new Date(f.follow_up_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -841,7 +791,10 @@ export const CaseManagerDashboard = () => {
           rows={cases.map(c => [
             <Link to={`/cases/${c.id}`} className="text-indigo-600 font-semibold hover:underline">{c.case_number}</Link>,
             c.Lead?.client_name || 'N/A',
-            c.Lead?.mobile || 'N/A',
+            <div className="flex items-center gap-1.5">
+              <span>{c.Lead?.mobile || 'N/A'}</span>
+              {c.Lead?.mobile && <WhatsAppButton phone={c.Lead.mobile} variant="icon" className="!w-4 !h-4" />}
+            </div>,
             c.Lead?.email || 'N/A',
             <StatusBadge status={c.status} />
           ])}

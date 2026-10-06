@@ -90,10 +90,24 @@ const parseImportFile = async (req, res) => {
 
       const errors = [];
       if (!mapped.client_name) errors.push('client_name is required');
-      if (!mapped.mobile) errors.push('mobile is required');
+      if (!mapped.mobile) {
+        errors.push('mobile is required');
+      } else {
+        const cleanMobile = String(mapped.mobile).trim().replace(/[\s-]/g, '');
+        if (!/^\+?[0-9]{7,15}$/.test(cleanMobile)) {
+          errors.push('Invalid mobile number (must contain numbers only, 7 to 15 digits)');
+        } else {
+          mapped.mobile = cleanMobile;
+        }
+      }
 
-      if (mapped.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mapped.email)) {
-        errors.push('Invalid email format');
+      if (mapped.email) {
+        const cleanEmail = String(mapped.email).trim();
+        if (cleanEmail && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(cleanEmail)) {
+          errors.push('Invalid email format (e.g. client@example.com)');
+        } else {
+          mapped.email = cleanEmail || null;
+        }
       }
 
       return {
@@ -234,6 +248,9 @@ const confirmImportLeads = async (req, res) => {
         errorsLog.push(`Row ${r.row_index}: Validations failed (${r.errors.join(', ')})`);
         continue;
       }
+
+      if (data.email === '') data.email = null;
+      if (data.mobile) data.mobile = String(data.mobile).trim().replace(/[\s-]/g, '');
 
       const existing = await Lead.findOne({ where: { mobile: data.mobile }, transaction });
       if (existing) {

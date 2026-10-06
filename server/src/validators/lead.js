@@ -6,10 +6,27 @@ const emptyToNullNumber = (v) => {
   return Number(v);
 };
 
+const phoneRegex = /^\+?[0-9]{7,15}$/;
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 const leadCreateSchema = z.object({
   client_name: z.string().min(1, 'Client name is required').max(100),
-  mobile: z.string().min(5, 'Valid mobile number (min 5 digits) is required').max(20, 'Mobile number cannot exceed 20 characters'),
-  email: z.preprocess(emptyToNull, z.string().email('Invalid email address').nullable().optional()),
+  mobile: z.string({ required_error: 'Mobile number is required' })
+    .trim()
+    .transform((v) => v.replace(/[\s-]/g, ''))
+    .refine((v) => phoneRegex.test(v), {
+      message: 'Invalid mobile number. It must contain only numbers (optional leading +) and be between 7 and 15 digits.'
+    }),
+  email: z.preprocess(
+    emptyToNull,
+    z.string()
+      .trim()
+      .refine((v) => !v || emailRegex.test(v), {
+        message: 'Invalid email address format (e.g. client@example.com)'
+      })
+      .nullable()
+      .optional()
+  ),
   country: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),
   nationality: z.preprocess(emptyToNull, z.string().max(100).nullable().optional()),
   city: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),

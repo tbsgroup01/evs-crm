@@ -219,7 +219,9 @@ const getCases = async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     const where = {};
 
-    if (req.user.role.name === 'CASE_MANAGER') {
+    const roleName = req.user.role?.name || (typeof req.user.role === 'string' ? req.user.role : '');
+
+    if (roleName === 'CASE_MANAGER') {
       where.case_manager_id = req.user.id;
     } else if (case_manager_id) {
       where.case_manager_id = case_manager_id;
@@ -232,7 +234,7 @@ const getCases = async (req, res) => {
       attributes: ['id', 'lead_number', 'client_name', 'mobile', 'email', 'country', 'nationality', 'city', 'service_required', 'package_amount', 'paid_amount', 'pending_amount', 'counselor_id']
     };
 
-    if (req.user.role.name === 'COUNSELOR') {
+    if (roleName === 'COUNSELOR') {
       leadInclude.where = { counselor_id: req.user.id };
       leadInclude.required = true;
     }
@@ -251,6 +253,8 @@ const getCases = async (req, res) => {
     }
 
     const { count, rows } = await Case.findAndCountAll({
+      distinct: true,
+      col: 'id',
       where,
       limit: parseInt(limit),
       offset,
@@ -258,8 +262,8 @@ const getCases = async (req, res) => {
       include: [
         leadInclude,
         { model: User, as: 'caseManager', attributes: ['id', 'name', 'email'] },
-        { model: CasePackage, as: 'casePackages', attributes: ['id', 'package_amount'] },
-        { model: Payment, as: 'payments', attributes: ['id', 'amount', 'status'] }
+        { model: CasePackage, as: 'casePackages', attributes: ['id', 'package_amount'], separate: true },
+        { model: Payment, as: 'payments', attributes: ['id', 'amount', 'status'], separate: true }
       ]
     });
 

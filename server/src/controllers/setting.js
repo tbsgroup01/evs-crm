@@ -2,6 +2,9 @@ const nodemailer = require('nodemailer');
 const { Setting, ActivityLog } = require('../models');
 const { getRealIp } = require('../utils/ipHelper');
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const PHONE_REGEX = /^\+?[0-9]{7,15}$/;
+
 const DEFAULT_SETTINGS = {
   general: {
     app_name: 'EVG CRM',
@@ -61,6 +64,20 @@ const updateSettings = async (req, res) => {
       }
     }
 
+    if (settingsToUpdate.contact_email && !EMAIL_REGEX.test(settingsToUpdate.contact_email.trim())) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid contact email address' });
+    }
+    if (settingsToUpdate.mail_from_address && !EMAIL_REGEX.test(settingsToUpdate.mail_from_address.trim())) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid mail from address' });
+    }
+    if (settingsToUpdate.contact_no) {
+      const cleanPhone = settingsToUpdate.contact_no.replace(/[\s-]/g, '');
+      if (!PHONE_REGEX.test(cleanPhone)) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid contact phone number (7 to 15 digits, numbers only)' });
+      }
+      settingsToUpdate.contact_no = cleanPhone;
+    }
+
     const entries = Object.entries(settingsToUpdate);
     for (const [key, value] of entries) {
       if (value !== undefined && value !== null) {
@@ -107,10 +124,10 @@ const sendTestEmail = async (req, res) => {
   try {
     const { to_email, mail_app, mail_host, mail_port, mail_user, mail_pass } = req.body;
 
-    if (!to_email) {
+    if (!to_email || !EMAIL_REGEX.test(to_email.trim())) {
       return res.status(400).json({
         success: false,
-        message: 'Recipient test email address is required'
+        message: 'Please provide a valid recipient test email address (e.g. user@example.com)'
       });
     }
 

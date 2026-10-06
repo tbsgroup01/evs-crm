@@ -49,7 +49,7 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'CRM API is running'
+    message: 'CRM API is runninggggggggggggggggggg'
   });
 });
 

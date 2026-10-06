@@ -4,6 +4,8 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
+import { PhoneInput } from '../components/PhoneInput';
+import { isValidEmail, isValidPhone } from '../utils/validators';
 import {
   Globe,
   Mail,
@@ -113,15 +115,26 @@ export const SettingsPanel = () => {
 
   const handleSaveGeneral = async (e) => {
     e.preventDefault();
-    setGeneralSaving(true);
     setGeneralAlert(null);
+
+    if (contactEmail && !isValidEmail(contactEmail)) {
+      setGeneralAlert({ type: 'error', message: 'Please enter a valid contact email address (e.g. support@example.com)' });
+      return;
+    }
+
+    if (contactNo && !isValidPhone(contactNo)) {
+      setGeneralAlert({ type: 'error', message: 'Please enter a valid contact phone number (must contain numbers only, 7 to 15 digits)' });
+      return;
+    }
+
+    setGeneralSaving(true);
 
     try {
       const formData = new FormData();
       formData.append('group', 'general');
       formData.append('app_name', appName);
       formData.append('contact_no', contactNo);
-      formData.append('contact_email', contactEmail);
+      formData.append('contact_email', contactEmail.trim());
       if (logoFile) formData.append('logo', logoFile);
       if (faviconFile) formData.append('favicon', faviconFile);
 
@@ -145,8 +158,14 @@ export const SettingsPanel = () => {
 
   const handleSaveEmail = async (e) => {
     e.preventDefault();
-    setEmailSaving(true);
     setEmailAlert(null);
+
+    if (mailFromAddress && !isValidEmail(mailFromAddress)) {
+      setEmailAlert({ type: 'error', message: 'Please enter a valid "From" email address' });
+      return;
+    }
+
+    setEmailSaving(true);
 
     try {
       const res = await axios.put('/api/v1/settings', {
@@ -157,7 +176,7 @@ export const SettingsPanel = () => {
         mail_user: mailUser,
         mail_pass: mailPass,
         mail_from_name: mailFromName,
-        mail_from_address: mailFromAddress
+        mail_from_address: mailFromAddress ? mailFromAddress.trim() : ''
       });
 
       if (res.data.success) {
@@ -177,6 +196,11 @@ export const SettingsPanel = () => {
     e.preventDefault();
     if (!testEmail) {
       setTestResult({ type: 'error', message: 'Please enter a target email address for testing.' });
+      return;
+    }
+
+    if (!isValidEmail(testEmail)) {
+      setTestResult({ type: 'error', message: 'Please enter a valid target email address for testing.' });
       return;
     }
 
@@ -267,12 +291,11 @@ export const SettingsPanel = () => {
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
+                    <PhoneInput
                       label="Contact Number"
                       id="contact_no"
                       value={contactNo}
-                      onChange={(e) => setContactNo(e.target.value)}
-                      placeholder="+971 4 123 4567"
+                      onChange={(val) => setContactNo(val)}
                     />
 
                     <Input

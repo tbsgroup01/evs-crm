@@ -167,7 +167,7 @@ function App() {
           setUser(res.data.data.user);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   };
 
   return (

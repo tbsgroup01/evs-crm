@@ -12,6 +12,11 @@ import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
 import { formatAED } from '../utils/formatters';
+import { isValidPhone, isValidEmail } from '../utils/validators';
+import { PhoneInput } from '../components/PhoneInput';
+import { CountrySelect } from '../components/CountrySelect';
+import { COUNTRIES } from '../data/countries';
+import { WhatsAppButton } from '../components/WhatsAppButton';
 
 export const LeadList = () => {
   const { user } = useContext(AuthContext);
@@ -306,7 +311,12 @@ export const LeadList = () => {
               l.lead_number,
               <div>
                 <Link to={`/leads/${l.id}`} className="text-blue-600 font-semibold hover:underline block">{l.client_name}</Link>
-                <span className="text-xs text-gray-500 block">{l.mobile}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-xs text-gray-500 block">{l.mobile}</span>
+                  {l.mobile && (
+                    <WhatsAppButton phone={l.mobile} variant="icon" className="!w-4 !h-4" />
+                  )}
+                </div>
               </div>,
               <span className="text-xs font-semibold text-slate-700">{l.nationality || l.country || 'N/A'}</span>,
               <span className="text-xs font-semibold text-slate-700">{l.service_required || 'N/A'}</span>,
@@ -654,7 +664,12 @@ export const LeadDetail = () => {
             </div>
             <div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Mobile Number</p>
-              <p className="text-sm text-slate-800 font-bold mt-0.5">{lead.mobile}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-sm text-slate-800 font-bold">{lead.mobile || 'N/A'}</p>
+                {lead.mobile && (
+                  <WhatsAppButton phone={lead.mobile} />
+                )}
+              </div>
             </div>
           </div>
 
@@ -835,7 +850,7 @@ export const LeadDetail = () => {
           </p>
 
           <Input label="Unique File ID / Case Number *" id="conv_case_number" value={convCaseNumber} onChange={(e) => setConvCaseNumber(e.target.value)} placeholder="e.g. FILE-1005 or CASE-1005" />
-          <Input label="Nationality" id="conv_nationality" value={convNationality} onChange={(e) => setConvNationality(e.target.value)} />
+          <CountrySelect label="Nationality" id="conv_nationality" value={convNationality} onChange={(val) => setConvNationality(val)} />
           <Input label="Required Service / Category" id="conv_service" value={convService} onChange={(e) => setConvService(e.target.value)} />
 
           <div className="grid grid-cols-3 gap-3">
@@ -1023,6 +1038,9 @@ export const LeadForm = () => {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     defaultValues: {
+      nationality: 'United Arab Emirates',
+      country: 'United Arab Emirates',
+      mobile: '+971',
       adults: 1,
       kids: 0,
       total_pax: 1
@@ -1047,6 +1065,14 @@ export const LeadForm = () => {
   const kidsVal = watch('kids');
   const pkgVal = watch('package_amount');
   const paidVal = watch('paid_amount');
+  const mobileVal = watch('mobile');
+  const nationalityVal = watch('nationality');
+
+  useEffect(() => {
+    register('mobile');
+    register('nationality');
+    register('country');
+  }, [register]);
 
   useEffect(() => {
     const tot = parseInt(adultsVal || 0) + parseInt(kidsVal || 0);
@@ -1063,6 +1089,7 @@ export const LeadForm = () => {
       axios.get(`/api/v1/leads/${id}`).then(res => {
         const d = res.data.data;
         if (d.country && !d.nationality) d.nationality = d.country;
+        if (!d.country && d.nationality) d.country = d.nationality;
         reset(d);
       });
     }
@@ -1072,6 +1099,16 @@ export const LeadForm = () => {
     setErrorMsg(null);
     if (!canManageProfit) {
       delete data.profit;
+    }
+
+    if (!isValidPhone(data.mobile)) {
+      setErrorMsg('Please enter a valid mobile number (must contain numbers only, 7 to 15 digits).');
+      return;
+    }
+
+    if (data.email && !isValidEmail(data.email)) {
+      setErrorMsg('Please enter a valid email address (e.g. client@example.com).');
+      return;
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -1117,9 +1154,58 @@ export const LeadForm = () => {
             </div>
           )}
           <Input label="Client Name *" id="client_name" register={register} errors={errors} required />
-          <Input label="Mobile Number *" id="mobile" register={register} errors={errors} required />
-          <Input label="Email Address" id="email" type="email" register={register} errors={errors} />
-          <Input label="Nationality" id="nationality" register={register} errors={errors} placeholder="e.g. UAE / Indian / British" />
+          <CountrySelect
+            label="Nationality"
+            id="nationality"
+            value={nationalityVal || ''}
+            onChange={(countryName) => {
+              setValue('nationality', countryName, { shouldValidate: true });
+              setValue('country', countryName);
+            }}
+            onSelectCountry={(country) => {
+              setValue('nationality', country.name, { shouldValidate: true });
+              setValue('country', country.name);
+
+              // Auto attach dial code to mobile number according to selected country
+              const currentMobile = watch('mobile') || '';
+              let digitsOnly = '';
+              if (currentMobile.startsWith('+')) {
+                const sortedCountries = [...COUNTRIES].sort((a, b) => b.dialCode.length - a.dialCode.length);
+                const matched = sortedCountries.find(c => currentMobile.startsWith(c.dialCode));
+                if (matched) {
+                  digitsOnly = currentMobile.slice(matched.dialCode.length).replace(/\D/g, '');
+                } else {
+                  digitsOnly = currentMobile.replace(/\D/g, '');
+                }
+              } else {
+                digitsOnly = currentMobile.replace(/\D/g, '');
+              }
+
+              const updatedMobile = digitsOnly ? `${country.dialCode}${digitsOnly}` : `${country.dialCode}`;
+              setValue('mobile', updatedMobile, { shouldValidate: true });
+            }}
+            errors={errors}
+          />
+          <Input
+            label="Email Address"
+            id="email"
+            type="email"
+            placeholder="client@example.com"
+            register={register}
+            errors={errors}
+          />
+          <PhoneInput
+            label="Mobile Number *"
+            id="mobile"
+            value={mobileVal || ''}
+            onChange={(fullNum) => setValue('mobile', fullNum, { shouldValidate: true })}
+            onCountryChange={(c) => {
+              setValue('nationality', c.name, { shouldValidate: true });
+              setValue('country', c.name);
+            }}
+            errors={errors}
+            required
+          />
           <Select
             label="Required Product / Service *"
             id="service_required"

@@ -8,6 +8,8 @@ import { Select } from '../components/Select';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { AuthContext } from '../App';
+import { isValidEmail, isValidPhone } from '../utils/validators';
+import { PhoneInput } from '../components/PhoneInput';
 
 export const UsersList = () => {
   const { user: currentUser, refetchUser } = useContext(AuthContext);
@@ -107,10 +109,25 @@ export const UsersList = () => {
       return;
     }
 
+    if (!isValidEmail(email)) {
+      alert('Please enter a valid email address (e.g. user@example.com)');
+      return;
+    }
+
+    if (mobile1 && !isValidPhone(mobile1)) {
+      alert('Please enter a valid Mobile 1 number (must contain numbers only, 7 to 15 digits)');
+      return;
+    }
+
+    if (mobile2 && !isValidPhone(mobile2)) {
+      alert('Please enter a valid Mobile 2 number (must contain numbers only, 7 to 15 digits)');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('username', username);
-    formData.append('email', email);
+    formData.append('email', email.trim());
     formData.append('mobile_1', mobile1);
     formData.append('mobile_2', mobile2);
     formData.append('extension', extension);
@@ -152,10 +169,25 @@ export const UsersList = () => {
       return;
     }
 
+    if (!isValidEmail(email)) {
+      alert('Please enter a valid email address (e.g. user@example.com)');
+      return;
+    }
+
+    if (mobile1 && !isValidPhone(mobile1)) {
+      alert('Please enter a valid Mobile 1 number (must contain numbers only, 7 to 15 digits)');
+      return;
+    }
+
+    if (mobile2 && !isValidPhone(mobile2)) {
+      alert('Please enter a valid Mobile 2 number (must contain numbers only, 7 to 15 digits)');
+      return;
+    }
+
     const formData = new FormData();
     formData.append('name', name);
     if (username) formData.append('username', username);
-    formData.append('email', email);
+    formData.append('email', email.trim());
     formData.append('mobile_1', mobile1);
     formData.append('mobile_2', mobile2);
     formData.append('extension', extension);
@@ -564,10 +596,7 @@ export const UsersList = () => {
                   <span className="text-gray-500">Mobile 2:</span>
                   <span className="font-semibold text-slate-800">{selectedUser.mobile_2 || 'N/A'}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Extension:</span>
-                  <span className="font-semibold text-indigo-600">{selectedUser.extension || 'N/A'}</span>
-                </div>
+
               </div>
             </div>
           )}
@@ -582,10 +611,7 @@ export const UsersList = () => {
 
           {sidebarTab === 'details' && (
             <div className="space-y-3 text-xs text-slate-700">
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-400">Username:</span>
-                <span className="font-semibold text-slate-900">{selectedUser.username ? `@${selectedUser.username}` : 'N/A'}</span>
-              </div>
+
               <div className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-400">Mobile 1:</span>
                 <span className="font-semibold text-slate-900">{selectedUser.mobile_1 || selectedUser.phone || 'N/A'}</span>
@@ -594,10 +620,7 @@ export const UsersList = () => {
                 <span className="text-gray-400">Mobile 2:</span>
                 <span className="font-semibold text-slate-900">{selectedUser.mobile_2 || 'N/A'}</span>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-gray-100">
-                <span className="text-gray-400">Landline / Ext:</span>
-                <span className="font-semibold text-indigo-600">{selectedUser.extension || 'N/A'}</span>
-              </div>
+
               <div className="flex justify-between py-1.5 border-b border-gray-100">
                 <span className="text-gray-400">Email:</span>
                 <span className="font-semibold text-slate-900">{selectedUser.email}</span>
@@ -669,8 +692,8 @@ export const UsersList = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input label="Mobile 1 *" id="mobile1" value={mobile1} onChange={(e) => setMobile1(e.target.value)} placeholder="+971 50 123 4567" />
-                <Input label="Mobile 2" id="mobile2" value={mobile2} onChange={(e) => setMobile2(e.target.value)} placeholder="Secondary contact" />
+                <PhoneInput label="Mobile 1 *" id="mobile1" value={mobile1} onChange={(val) => setMobile1(val)} />
+                <PhoneInput label="Mobile 2" id="mobile2" value={mobile2} onChange={(val) => setMobile2(val)} />
               </div>
 
               <Input label="Landline / Intercom Extension" id="extension" value={extension} onChange={(e) => setExtension(e.target.value)} placeholder="e.g. Ext 104 or 04-321456" />
@@ -741,8 +764,8 @@ export const UsersList = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input label="Mobile 1" id="edit_mobile1" value={mobile1} onChange={(e) => setMobile1(e.target.value)} />
-                <Input label="Mobile 2" id="edit_mobile2" value={mobile2} onChange={(e) => setMobile2(e.target.value)} />
+                <PhoneInput label="Mobile 1" id="edit_mobile1" value={mobile1} onChange={(val) => setMobile1(val)} />
+                <PhoneInput label="Mobile 2" id="edit_mobile2" value={mobile2} onChange={(val) => setMobile2(val)} />
               </div>
 
               <Input label="Landline / Intercom Extension" id="edit_extension" value={extension} onChange={(e) => setExtension(e.target.value)} />

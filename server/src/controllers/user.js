@@ -2,6 +2,9 @@ const bcrypt = require('bcrypt');
 const { User, Role, Lead, Case, ActivityLog } = require('../models');
 const { getRealIp } = require('../utils/ipHelper');
 
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const PHONE_REGEX = /^\+?[0-9]{7,15}$/;
+
 const getUsers = async (req, res) => {
   try {
     const list = await User.findAll({
@@ -49,6 +52,26 @@ const createUser = async (req, res) => {
 
     if (!name || !username || !email || !password || !role_id) {
       return res.status(400).json({ success: false, message: 'Name, username, email, password, and role are required' });
+    }
+
+    if (!EMAIL_REGEX.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address (e.g. user@example.com)' });
+    }
+
+    if (mobile_1) {
+      const cleanM1 = String(mobile_1).replace(/[\s-]/g, '');
+      if (!PHONE_REGEX.test(cleanM1)) {
+        return res.status(400).json({ success: false, message: 'Invalid Mobile 1 number. Must contain numbers only (optional leading +), 7 to 15 digits.' });
+      }
+      mobile_1 = cleanM1;
+    }
+
+    if (mobile_2) {
+      const cleanM2 = String(mobile_2).replace(/[\s-]/g, '');
+      if (!PHONE_REGEX.test(cleanM2)) {
+        return res.status(400).json({ success: false, message: 'Invalid Mobile 2 number. Must contain numbers only (optional leading +), 7 to 15 digits.' });
+      }
+      mobile_2 = cleanM2;
     }
 
     const cleanUsername = username.trim().toLowerCase();
@@ -133,6 +156,28 @@ const updateUser = async (req, res) => {
 
     let { name, username, email, phone, mobile_1, mobile_2, extension, role_id } = req.body;
     mobile_1 = mobile_1 || phone || user.mobile_1 || user.phone;
+
+    if (email !== undefined) {
+      if (!email || !EMAIL_REGEX.test(email.trim())) {
+        return res.status(400).json({ success: false, message: 'Please enter a valid email address (e.g. user@example.com)' });
+      }
+    }
+
+    if (mobile_1) {
+      const cleanM1 = String(mobile_1).replace(/[\s-]/g, '');
+      if (!PHONE_REGEX.test(cleanM1)) {
+        return res.status(400).json({ success: false, message: 'Invalid Mobile 1 number. Must contain numbers only (optional leading +), 7 to 15 digits.' });
+      }
+      mobile_1 = cleanM1;
+    }
+
+    if (mobile_2) {
+      const cleanM2 = String(mobile_2).replace(/[\s-]/g, '');
+      if (!PHONE_REGEX.test(cleanM2)) {
+        return res.status(400).json({ success: false, message: 'Invalid Mobile 2 number. Must contain numbers only (optional leading +), 7 to 15 digits.' });
+      }
+      mobile_2 = cleanM2;
+    }
 
     let cleanUsername = user.username;
     if (username) {

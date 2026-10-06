@@ -12,6 +12,7 @@ import { Pagination } from '../components/Pagination';
 import { Modal } from '../components/Modal';
 import { AuthContext } from '../App';
 import { formatAED } from '../utils/formatters';
+import { WhatsAppButton } from '../components/WhatsAppButton';
 
 export const formatCaseDate = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -280,7 +281,12 @@ export const CaseList = () => {
               </div>,
               <div>
                 <span className="font-bold text-slate-800 text-xs block">{c.Lead?.client_name || 'N/A'}</span>
-                <span className="text-gray-400 text-[10px] block">{c.Lead?.mobile || c.Lead?.email || 'N/A'}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-gray-400 text-[10px] block">{c.Lead?.mobile || c.Lead?.email || 'N/A'}</span>
+                  {c.Lead?.mobile && (
+                    <WhatsAppButton phone={c.Lead.mobile} variant="icon" className="!w-4 !h-4" />
+                  )}
+                </div>
               </div>,
               (user?.role === 'ADMIN' || user?.role === 'LEAD_MANAGER') ? (
                 <select
@@ -343,7 +349,7 @@ export const CaseList = () => {
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
           <span className="text-xs text-gray-500">
-            Showing {(page - 1) * 15 + 1} to {Math.min(page * 15, total)} of {total} results
+            {total === 0 ? 'Showing 0 of 0 results' : `Showing ${(page - 1) * 15 + 1} to ${Math.min(page * 15, total)} of ${total} results`}
           </span>
           <div className="flex items-center gap-1">
             <button
@@ -574,9 +580,14 @@ export const CaseDetail = () => {
               <h1 className="text-2xl font-extrabold text-gray-900 leading-none">{caseObj.Lead?.client_name}</h1>
               <StatusBadge status={caseObj.status} />
             </div>
-            <p className="text-xs text-gray-500 mt-1.5 font-semibold flex items-center gap-4">
+            <p className="text-xs text-gray-500 mt-1.5 font-semibold flex flex-wrap items-center gap-4">
               <span>Case Manager: <strong className="text-slate-800">{caseObj.caseManager ? caseObj.caseManager.name : 'Unassigned'}</strong></span>
-              <span>Client Phone: <strong className="text-slate-800">{caseObj.Lead?.mobile || 'N/A'}</strong></span>
+              <span className="inline-flex items-center gap-2">
+                Client Phone: <strong className="text-slate-800">{caseObj.Lead?.mobile || 'N/A'}</strong>
+                {caseObj.Lead?.mobile && (
+                  <WhatsAppButton phone={caseObj.Lead.mobile} />
+                )}
+              </span>
             </p>
           </div>
         </div>
