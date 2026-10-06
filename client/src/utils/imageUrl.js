@@ -8,6 +8,6 @@ export const getImageUrl = (path) => {
   ) {
     return path;
   }
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+  const baseUrl = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };

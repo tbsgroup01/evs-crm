@@ -22,7 +22,7 @@ export const DashboardLayout = ({ children }) => {
     if (path.startsWith('blob:') || path.startsWith('data:') || path.startsWith('http://') || path.startsWith('https://')) {
       return path;
     }
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5505';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
     return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
   };
 

@@ -172,55 +172,95 @@ export const LeadList = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setStatus(''); setPage(1); }}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
+            status === '' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-100 hover:border-blue-200'
+          }`}
+        >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Leads</span>
-            <span className="text-2xl font-bold text-slate-900 mt-1 block">{stats?.totalLeads || total}</span>
+            <span className="text-2xl font-bold text-slate-900 mt-1 block">
+              {stats?.totalLeads ?? stats?.total ?? total}
+            </span>
           </div>
           <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
             <Users className="h-5 w-5" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setStatus(status === 'NEW' ? '' : 'NEW'); setPage(1); }}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
+            status === 'NEW' ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/30' : 'border-gray-100 hover:border-blue-200'
+          }`}
+        >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">New Leads</span>
-            <span className="text-2xl font-bold text-blue-600 mt-1 block">{stats?.newLeads || 0}</span>
+            <span className="text-2xl font-bold text-blue-600 mt-1 block">
+              {stats?.newLeads ?? stats?.ratios?.new ?? leads.filter(l => l.status === 'NEW').length}
+            </span>
           </div>
           <div className="h-10 w-10 rounded-full bg-sky-50 flex items-center justify-center text-sky-600">
             <UserCheck className="h-5 w-5" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setStatus(status === 'INTERESTED' ? '' : 'INTERESTED'); setPage(1); }}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
+            status === 'INTERESTED' ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30' : 'border-gray-100 hover:border-emerald-200'
+          }`}
+        >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Interested</span>
-            <span className="text-2xl font-bold text-emerald-600 mt-1 block">{stats?.interestedLeads || 0}</span>
+            <span className="text-2xl font-bold text-emerald-600 mt-1 block">
+              {stats?.interestedLeads ?? stats?.ratios?.interested ?? leads.filter(l => l.status === 'INTERESTED').length}
+            </span>
           </div>
           <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
             <Check className="h-5 w-5" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setStatus(status === 'FOLLOW_UP' ? '' : 'FOLLOW_UP'); setPage(1); }}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
+            status === 'FOLLOW_UP' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/30' : 'border-gray-100 hover:border-amber-200'
+          }`}
+        >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Follow Up</span>
-            <span className="text-2xl font-bold text-amber-600 mt-1 block">{stats?.followUpLeads || 0}</span>
+            <span className="text-2xl font-bold text-amber-600 mt-1 block">
+              {stats?.followUpLeads ?? stats?.ratios?.followUp ?? leads.filter(l => l.status === 'FOLLOW_UP').length}
+            </span>
           </div>
           <div className="h-10 w-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
             <Calendar className="h-5 w-5" />
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setStatus(status === 'CONVERTED' ? '' : 'CONVERTED'); setPage(1); }}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
+            status === 'CONVERTED' ? 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/30' : 'border-gray-100 hover:border-purple-200'
+          }`}
+        >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Converted</span>
-            <span className="text-2xl font-bold text-purple-600 mt-1 block">{stats?.convertedLeads || 0}</span>
+            <span className="text-2xl font-bold text-purple-600 mt-1 block">
+              {stats?.convertedLeads ?? stats?.ratios?.converted ?? leads.filter(l => l.status === 'CONVERTED').length}
+            </span>
           </div>
           <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
             <FolderPlus className="h-5 w-5" />
           </div>
-        </div>
+        </button>
       </div>
 
       <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">

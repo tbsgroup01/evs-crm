@@ -152,15 +152,27 @@ export const AdminDashboard = () => {
     };
   });
 
-  const pieData = [
-    { name: 'Converted', count: statusDist.find(s => s.status === 'CONVERTED')?.count || 0 },
-    { name: 'Interested', count: statusDist.find(s => s.status === 'INTERESTED')?.count || 0 },
-    { name: 'Follow-Up', count: statusDist.find(s => s.status === 'FOLLOW_UP')?.count || 0 },
-    { name: 'Not Interested', count: statusDist.find(s => s.status === 'NOT_INTERESTED')?.count || 0 },
-    { name: 'Cold Lead', count: statusDist.find(s => s.status === 'COLD_LEAD')?.count || 0 }
+  const STATUS_CONFIG = [
+    { key: 'NEW', name: 'New Leads', color: '#3b82f6' },
+    { key: 'INTERESTED', name: 'Interested', color: '#10b981' },
+    { key: 'FOLLOW_UP', name: 'Follow-Up', color: '#f59e0b' },
+    { key: 'CONVERTED', name: 'Converted', color: '#8b5cf6' },
+    { key: 'COLD_LEAD', name: 'Cold Lead', color: '#64748b' },
+    { key: 'NOT_INTERESTED', name: 'Not Interested', color: '#ef4444' }
   ];
 
-  const totalPieCount = pieData.reduce((acc, curr) => acc + curr.count, 0);
+  const pieData = STATUS_CONFIG.map(item => {
+    const match = statusDist.find(s => String(s.status).toUpperCase() === item.key);
+    const countVal = match ? parseInt(match.count, 10) || 0 : 0;
+    return {
+      name: item.name,
+      count: countVal,
+      color: item.color
+    };
+  });
+
+  const totalPieCount = pieData.reduce((acc, curr) => acc + (curr.count || 0), 0);
+  const activePieSlices = pieData.filter(d => d.count > 0);
 
   return (
     <div className="space-y-6">
@@ -174,73 +186,81 @@ export const AdminDashboard = () => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
+        <Link
+          to="/leads"
+          className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40 hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                 <Users className="h-5 w-5" />
               </div>
-              <span className="text-sm text-slate-500 font-semibold">Total Leads</span>
+              <span className="text-sm text-slate-500 group-hover:text-slate-800 font-semibold transition-colors">Total Leads</span>
             </div>
-
+            <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
           <div className="mt-2">
-            <p className="text-3xl font-bold text-slate-900">{summary?.totalLeads || 0}</p>
+            <p className="text-3xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{summary?.totalLeads || 0}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
+        </Link>
 
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
+        <Link
+          to="/cases"
+          className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40 hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                 <FileCheck className="h-5 w-5" />
               </div>
-              <span className="text-sm text-slate-500 font-semibold">Active Cases</span>
+              <span className="text-sm text-slate-500 group-hover:text-slate-800 font-semibold transition-colors">Active Cases</span>
             </div>
-
+            <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
           <div className="mt-2">
-            <p className="text-3xl font-bold text-slate-900">{summary?.activeCases || 0}</p>
+            <p className="text-3xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{summary?.activeCases || 0}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
+        </Link>
 
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
+        <Link
+          to="/payments"
+          className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40 hover:shadow-md hover:border-purple-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+              <div className="h-10 w-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                 <Landmark className="h-5 w-5" />
               </div>
-              <span className="text-sm text-slate-500 font-semibold">Total Revenue</span>
+              <span className="text-sm text-slate-500 group-hover:text-slate-800 font-semibold transition-colors">Total Revenue</span>
             </div>
-
+            <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-purple-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
           <div className="mt-2">
-            <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.totalRevenue || 0)}</p>
+            <p className="text-2xl font-bold text-slate-900 group-hover:text-purple-600 transition-colors">{formatAED(summary?.totalRevenue || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
+        </Link>
 
-        </div>
-
-        <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40">
+        <Link
+          to="/payments"
+          className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm relative overflow-hidden flex flex-col justify-between h-40 hover:shadow-md hover:border-orange-200 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600">
+              <div className="h-10 w-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
                 <AlertCircle className="h-5 w-5" />
               </div>
-              <span className="text-sm text-slate-500 font-semibold">Outstanding Balances</span>
+              <span className="text-sm text-slate-500 group-hover:text-slate-800 font-semibold transition-colors">Outstanding Balances</span>
             </div>
-
+            <ArrowUpRight className="h-4 w-4 text-slate-300 group-hover:text-orange-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
           </div>
           <div className="mt-2">
-            <p className="text-2xl font-bold text-slate-900">{formatAED(summary?.outstandingAmount || 0)}</p>
+            <p className="text-2xl font-bold text-slate-900 group-hover:text-orange-600 transition-colors">{formatAED(summary?.outstandingAmount || 0)}</p>
             <p className="text-xs text-slate-400 mt-1">Filtered range</p>
           </div>
-
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -290,36 +310,36 @@ export const AdminDashboard = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={activePieSlices.length > 0 ? activePieSlices : [{ name: 'No Leads', count: 1, color: '#e2e8f0' }]}
                     dataKey="count"
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={2}
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={activePieSlices.length > 1 ? 2 : 0}
                   >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {(activePieSlices.length > 0 ? activePieSlices : [{ name: 'No Leads', count: 1, color: '#e2e8f0' }]).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute text-center">
-                <p className="text-2xl font-bold text-slate-950">{totalPieCount}</p>
-                <p className="text-xs text-slate-400">Total</p>
+                <p className="text-2xl font-bold text-slate-950">{totalPieCount || summary?.totalLeads || 0}</p>
+                <p className="text-xs text-slate-400 font-medium">Total</p>
               </div>
             </div>
 
-            <div className="flex-1 w-full space-y-3">
+            <div className="flex-1 w-full space-y-2 max-h-[190px] overflow-y-auto pr-1">
               {pieData.map((p, idx) => {
                 const pct = totalPieCount > 0 ? ((p.count / totalPieCount) * 100).toFixed(0) : '0';
                 return (
-                  <div key={idx} className="flex items-center justify-between text-xs font-semibold">
+                  <div key={idx} className="flex items-center justify-between text-xs font-semibold py-0.5">
                     <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                      <span className="text-slate-500 font-medium">{p.name}</span>
+                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                      <span className="text-slate-600 font-medium">{p.name}</span>
                     </div>
-                    <span className="text-slate-800">{p.count} ({pct}%)</span>
+                    <span className="text-slate-800 font-bold">{p.count} <span className="text-slate-400 font-normal">({pct}%)</span></span>
                   </div>
                 );
               })}
@@ -442,55 +462,55 @@ export const CounselorDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/leads" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Assigned Leads</span>
-            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Assigned Leads</span>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Users className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 mt-3">{stats?.total || 0}</p>
-        </div>
+          <p className="text-3xl font-bold text-slate-900 group-hover:text-blue-600 mt-3 transition-colors">{stats?.total || 0}</p>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/leads" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-sky-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">New Leads</span>
-            <div className="h-8 w-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">New Leads</span>
+            <div className="h-8 w-8 rounded-lg bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-sky-600 mt-3">{stats?.new || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/leads" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Interested</span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Interested</span>
+            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
               <CheckCircle2 className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-emerald-600 mt-3">{stats?.interested || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/leads" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-amber-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Follow Up</span>
-            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Follow Up</span>
+            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Clock className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-amber-600 mt-3">{stats?.follow_up || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/leads" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-slate-300 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cold Leads</span>
-            <div className="h-8 w-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Cold Leads</span>
+            <div className="h-8 w-8 rounded-lg bg-slate-100 text-slate-600 group-hover:bg-slate-700 group-hover:text-white flex items-center justify-center transition-colors">
               <Flame className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-slate-600 mt-3">{stats?.cold || 0}</p>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -658,55 +678,55 @@ export const CaseManagerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/cases" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-indigo-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Allocated Cases</span>
-            <div className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Allocated Cases</span>
+            <div className="h-8 w-8 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-colors">
               <FileCheck className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 mt-3">{stats?.total || 0}</p>
-        </div>
+          <p className="text-3xl font-bold text-slate-900 group-hover:text-indigo-600 mt-3 transition-colors">{stats?.total || 0}</p>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/cases" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-blue-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">New Cases</span>
-            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">New Cases</span>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Sparkles className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-blue-600 mt-3">{stats?.new || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/cases" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-purple-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Files</span>
-            <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Active Files</span>
+            <div className="h-8 w-8 rounded-lg bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Activity className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-indigo-600 mt-3">{stats?.active || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/cases" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-amber-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Docs</span>
-            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Pending Docs</span>
+            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white flex items-center justify-center transition-colors">
               <Clock className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-amber-600 mt-3">{stats?.pending || 0}</p>
-        </div>
+        </Link>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between">
+        <Link to="/cases" className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md hover:border-emerald-200 hover:-translate-y-0.5 transition-all cursor-pointer group">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Completed</span>
-            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-slate-800 uppercase tracking-wider transition-colors">Completed</span>
+            <div className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors">
               <CheckCircle2 className="h-4 w-4" />
             </div>
           </div>
           <p className="text-3xl font-bold text-emerald-600 mt-3">{stats?.completed || 0}</p>
-        </div>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

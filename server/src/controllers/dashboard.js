@@ -29,9 +29,11 @@ const getSummary = async (req, res) => {
     const paymentWhere = buildDateRangeWhere(req, 'payment_date');
 
     const totalLeads = await Lead.count({ where: leadWhere });
+    const newLeads = await Lead.count({ where: { ...leadWhere, status: 'NEW' } });
     const interestedLeads = await Lead.count({ where: { ...leadWhere, status: 'INTERESTED' } });
     const followUpLeads = await Lead.count({ where: { ...leadWhere, status: 'FOLLOW_UP' } });
     const coldLeads = await Lead.count({ where: { ...leadWhere, status: 'COLD_LEAD' } });
+    const convertedLeads = await Lead.count({ where: { ...leadWhere, status: 'CONVERTED' } });
 
     const activeCases = await Case.count({ where: { ...caseWhere, status: 'ACTIVE' } });
     const completedCases = await Case.count({ where: { ...caseWhere, status: 'COMPLETED' } });
@@ -44,9 +46,11 @@ const getSummary = async (req, res) => {
       success: true,
       data: {
         totalLeads,
+        newLeads,
         interestedLeads,
         followUpLeads,
         coldLeads,
+        convertedLeads,
         activeCases,
         completedCases,
         totalRevenue: parseFloat(totalRevenue),
@@ -64,9 +68,14 @@ const getLeadStatus = async (req, res) => {
     const stats = await Lead.findAll({
       where,
       attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
-      group: ['status']
+      group: ['status'],
+      raw: true
     });
-    return res.status(200).json({ success: true, data: stats });
+    const parsedStats = stats.map(s => ({
+      status: s.status,
+      count: parseInt(s.count, 10) || 0
+    }));
+    return res.status(200).json({ success: true, data: parsedStats });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to retrieve lead status distribution', errors: [error.message] });
   }

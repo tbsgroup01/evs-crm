@@ -552,7 +552,8 @@ const createLeadInteraction = async (req, res) => {
 const getLeadsStats = async (req, res) => {
   try {
     const where = {};
-    if (req.user.role.name === 'COUNSELOR') {
+    const roleName = req.user?.role?.name || req.user?.role;
+    if (roleName === 'COUNSELOR') {
       where.counselor_id = req.user.id;
     }
 
@@ -560,6 +561,7 @@ const getLeadsStats = async (req, res) => {
     const assigned = await Lead.count({ where: { ...where, counselor_id: { [Op.ne]: null } } });
     const unassigned = total - assigned;
 
+    const newLeads = await Lead.count({ where: { ...where, status: 'NEW' } });
     const converted = await Lead.count({ where: { ...where, status: 'CONVERTED' } });
     const interested = await Lead.count({ where: { ...where, status: 'INTERESTED' } });
     const followUp = await Lead.count({ where: { ...where, status: 'FOLLOW_UP' } });
@@ -570,9 +572,17 @@ const getLeadsStats = async (req, res) => {
       success: true,
       data: {
         total,
+        totalLeads: total,
+        newLeads,
+        interestedLeads: interested,
+        followUpLeads: followUp,
+        convertedLeads: converted,
+        coldLeads: cold,
+        notInterestedLeads: notInterested,
         assigned,
         unassigned,
         ratios: {
+          new: newLeads,
           converted,
           interested,
           followUp,
