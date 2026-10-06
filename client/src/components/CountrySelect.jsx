@@ -9,6 +9,7 @@ export const CountrySelect = ({
   value = '',
   onChange,
   onSelectCountry,
+  showDialCode = false,
   errors,
   required = false,
   placeholder = 'Select country or nationality...',
@@ -129,7 +130,7 @@ export const CountrySelect = ({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {selectedCountry?.dialCode && (
+          {showDialCode && selectedCountry?.dialCode && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
               {selectedCountry.dialCode}
             </span>

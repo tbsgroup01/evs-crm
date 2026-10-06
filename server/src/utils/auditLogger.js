@@ -1,9 +1,7 @@
 const { ActivityLog, LeadInteraction } = require('../models');
 const { getRealIp } = require('./ipHelper');
 
-/**
- * Log activity to both ActivityLog (global audit trail) and LeadInteraction (case/lead timeline)
- */
+
 const logAudit = async ({
   req,
   user,

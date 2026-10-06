@@ -15,7 +15,6 @@ import { formatAED } from '../utils/formatters';
 import { isValidPhone, isValidEmail } from '../utils/validators';
 import { PhoneInput } from '../components/PhoneInput';
 import { CountrySelect } from '../components/CountrySelect';
-import { COUNTRIES } from '../data/countries';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 
 export const LeadList = () => {
@@ -175,9 +174,8 @@ export const LeadList = () => {
         <button
           type="button"
           onClick={() => { setStatus(''); setPage(1); }}
-          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
-            status === '' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-100 hover:border-blue-200'
-          }`}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${status === '' ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-100 hover:border-blue-200'
+            }`}
         >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Leads</span>
@@ -193,9 +191,8 @@ export const LeadList = () => {
         <button
           type="button"
           onClick={() => { setStatus(status === 'NEW' ? '' : 'NEW'); setPage(1); }}
-          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
-            status === 'NEW' ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/30' : 'border-gray-100 hover:border-blue-200'
-          }`}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${status === 'NEW' ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/30' : 'border-gray-100 hover:border-blue-200'
+            }`}
         >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">New Leads</span>
@@ -211,9 +208,8 @@ export const LeadList = () => {
         <button
           type="button"
           onClick={() => { setStatus(status === 'INTERESTED' ? '' : 'INTERESTED'); setPage(1); }}
-          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
-            status === 'INTERESTED' ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30' : 'border-gray-100 hover:border-emerald-200'
-          }`}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${status === 'INTERESTED' ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30' : 'border-gray-100 hover:border-emerald-200'
+            }`}
         >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Interested</span>
@@ -229,9 +225,8 @@ export const LeadList = () => {
         <button
           type="button"
           onClick={() => { setStatus(status === 'FOLLOW_UP' ? '' : 'FOLLOW_UP'); setPage(1); }}
-          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
-            status === 'FOLLOW_UP' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/30' : 'border-gray-100 hover:border-amber-200'
-          }`}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${status === 'FOLLOW_UP' ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/30' : 'border-gray-100 hover:border-amber-200'
+            }`}
         >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Follow Up</span>
@@ -247,9 +242,8 @@ export const LeadList = () => {
         <button
           type="button"
           onClick={() => { setStatus(status === 'CONVERTED' ? '' : 'CONVERTED'); setPage(1); }}
-          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${
-            status === 'CONVERTED' ? 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/30' : 'border-gray-100 hover:border-purple-200'
-          }`}
+          className={`bg-white rounded-xl p-4 shadow-sm border text-left transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer flex items-center justify-between ${status === 'CONVERTED' ? 'border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/30' : 'border-gray-100 hover:border-purple-200'
+            }`}
         >
           <div>
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Converted</span>
@@ -483,7 +477,7 @@ export const LeadDetail = () => {
   const [lead, setLead] = useState(null);
   const [interactions, setInteractions] = useState([]);
 
-  // Modals
+
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteVal, setNoteVal] = useState('');
   const [noteStatus, setNoteStatus] = useState('');
@@ -491,7 +485,7 @@ export const LeadDetail = () => {
   const [followDate, setFollowDate] = useState('');
   const [followNotes, setFollowNotes] = useState('');
 
-  // Conversion Modal State
+
   const [convertOpen, setConvertOpen] = useState(false);
   const [convCaseNumber, setConvCaseNumber] = useState('');
   const [convNationality, setConvNationality] = useState('');
@@ -697,7 +691,7 @@ export const LeadDetail = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 pt-6 border-t border-gray-100 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6 border-t border-gray-100 w-full">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
               <Phone className="h-5 w-5" />
@@ -740,16 +734,6 @@ export const LeadDetail = () => {
             <div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pax Count</p>
               <p className="text-sm text-slate-800 font-bold mt-0.5">{totalPax} Total ({lead.adults || 1} A, {lead.kids || 0} K)</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Counselor</p>
-              <p className="text-sm text-slate-800 font-bold mt-0.5">{lead.counselor?.name || 'Unassigned'}</p>
             </div>
           </div>
         </div>
@@ -1092,12 +1076,12 @@ export const LeadForm = () => {
   useEffect(() => {
     axios.get('/api/v1/packages')
       .then(res => setPackagesList(res.data.data || []))
-      .catch(() => {});
+      .catch(() => { });
 
     if (canManageProfit) {
       axios.get('/api/v1/users')
         .then(res => setCounselorsList((res.data.data || []).filter(u => u.role === 'COUNSELOR')))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [canManageProfit]);
 
@@ -1202,28 +1186,6 @@ export const LeadForm = () => {
               setValue('nationality', countryName, { shouldValidate: true });
               setValue('country', countryName);
             }}
-            onSelectCountry={(country) => {
-              setValue('nationality', country.name, { shouldValidate: true });
-              setValue('country', country.name);
-
-              // Auto attach dial code to mobile number according to selected country
-              const currentMobile = watch('mobile') || '';
-              let digitsOnly = '';
-              if (currentMobile.startsWith('+')) {
-                const sortedCountries = [...COUNTRIES].sort((a, b) => b.dialCode.length - a.dialCode.length);
-                const matched = sortedCountries.find(c => currentMobile.startsWith(c.dialCode));
-                if (matched) {
-                  digitsOnly = currentMobile.slice(matched.dialCode.length).replace(/\D/g, '');
-                } else {
-                  digitsOnly = currentMobile.replace(/\D/g, '');
-                }
-              } else {
-                digitsOnly = currentMobile.replace(/\D/g, '');
-              }
-
-              const updatedMobile = digitsOnly ? `${country.dialCode}${digitsOnly}` : `${country.dialCode}`;
-              setValue('mobile', updatedMobile, { shouldValidate: true });
-            }}
             errors={errors}
           />
           <Input
@@ -1239,10 +1201,6 @@ export const LeadForm = () => {
             id="mobile"
             value={mobileVal || ''}
             onChange={(fullNum) => setValue('mobile', fullNum, { shouldValidate: true })}
-            onCountryChange={(c) => {
-              setValue('nationality', c.name, { shouldValidate: true });
-              setValue('country', c.name);
-            }}
             errors={errors}
             required
           />
