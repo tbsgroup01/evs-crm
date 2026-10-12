@@ -19,7 +19,7 @@ import { SettingsPanel } from './pages/SettingsPanel';
 import { NotificationsList } from './pages/NotificationsList';
 import { DashboardLayout } from './components/DashboardLayout';
 
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://evs-crm.towsindia.com';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5505';
 axios.defaults.withCredentials = true;
 
 const initialToken = localStorage.getItem('token');

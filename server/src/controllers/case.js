@@ -11,6 +11,58 @@ const getRoleLabel = (user) => {
   return name;
 };
 
+const generateNextCaseNumber = async (transaction = null) => {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = String(now.getFullYear()).slice(-2);
+  const prefix = `EVG-${day}${month}${year}-`;
+
+  const queryOptions = {
+    where: {
+      case_number: {
+        [Op.like]: `${prefix}%`
+      }
+    },
+    attributes: ['case_number'],
+    paranoid: false
+  };
+  if (transaction) {
+    queryOptions.transaction = transaction;
+  }
+
+  const existingCases = await Case.findAll(queryOptions);
+  let maxSeq = 0;
+  for (const c of existingCases) {
+    if (!c.case_number) continue;
+    const parts = c.case_number.split('-');
+    const lastPart = parts[parts.length - 1];
+    const num = parseInt(lastPart, 10);
+    if (!isNaN(num) && num > maxSeq) {
+      maxSeq = num;
+    }
+  }
+
+  const nextSeq = String(maxSeq + 1).padStart(3, '0');
+  return `${prefix}${nextSeq}`;
+};
+
+const getNextCaseNumber = async (req, res) => {
+  try {
+    const nextCaseNumber = await generateNextCaseNumber();
+    return res.status(200).json({
+      success: true,
+      data: { case_number: nextCaseNumber }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate next case number',
+      errors: [error.message]
+    });
+  }
+};
+
 const convertLeadToCase = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -126,13 +178,13 @@ const convertLeadToCase = async (req, res) => {
         return res.status(400).json({ success: false, message: `File ID / Case Number "${finalCaseNumber}" is already in use. Please enter a unique ID.` });
       }
     } else {
-      const maxId = (await Case.max('id', { transaction, paranoid: false })) || 0;
-      let nextNum = 1000 + maxId + 1;
-      finalCaseNumber = `FILE-${nextNum}`;
+      finalCaseNumber = await generateNextCaseNumber(transaction);
       let exists = await Case.findOne({ where: { case_number: finalCaseNumber }, transaction, paranoid: false });
       while (exists) {
-        nextNum += 1;
-        finalCaseNumber = `FILE-${nextNum}`;
+        const parts = finalCaseNumber.split('-');
+        const currentSeq = parseInt(parts[parts.length - 1], 10) || 0;
+        const nextSeq = String(currentSeq + 1).padStart(3, '0');
+        finalCaseNumber = `${parts.slice(0, -1).join('-')}-${nextSeq}`;
         exists = await Case.findOne({ where: { case_number: finalCaseNumber }, transaction, paranoid: false });
       }
     }
@@ -783,6 +835,8 @@ const addCaseInteraction = async (req, res) => {
 
 module.exports = {
   convertLeadToCase,
+  generateNextCaseNumber,
+  getNextCaseNumber,
   getCases,
   getCaseById,
   updateCase,

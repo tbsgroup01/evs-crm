@@ -549,7 +549,21 @@ export const LeadDetail = () => {
     const pkg = lead?.package_amount !== undefined && lead?.package_amount !== null ? parseFloat(lead.package_amount) : 0;
     const paid = lead?.paid_amount !== undefined && lead?.paid_amount !== null ? parseFloat(lead.paid_amount) : 0;
 
-    setConvCaseNumber(`FILE-${1000 + parseInt(id || 1)}`);
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = String(now.getFullYear()).slice(-2);
+    const defaultCaseNumber = `EVG-${day}${month}${year}-001`;
+
+    setConvCaseNumber(defaultCaseNumber);
+
+    axios.get('/api/v1/cases/next-number')
+      .then(res => {
+        if (res.data?.data?.case_number) {
+          setConvCaseNumber(res.data.data.case_number);
+        }
+      })
+      .catch(() => {});
     setConvNationality(lead?.nationality || lead?.country || '');
     setConvService(lead?.service_required || '');
     setConvAdults(lead?.adults !== undefined && lead?.adults !== null ? lead.adults : 1);
@@ -873,7 +887,7 @@ export const LeadDetail = () => {
             Assign unique File ID, package amount, payment details, pax count, and notes for this case file.
           </p>
 
-          <Input label="Unique File ID / Case Number *" id="conv_case_number" value={convCaseNumber} onChange={(e) => setConvCaseNumber(e.target.value)} placeholder="e.g. FILE-1005 or CASE-1005" />
+          <Input label="Unique File ID / Case Number *" id="conv_case_number" value={convCaseNumber} onChange={(e) => setConvCaseNumber(e.target.value)} placeholder="e.g. EVG-121026-001" />
           <CountrySelect label="Nationality" id="conv_nationality" value={convNationality} onChange={(val) => setConvNationality(val)} />
           <Input label="Required Service / Category" id="conv_service" value={convService} onChange={(e) => setConvService(e.target.value)} />
 
